@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Slayer Task Lookup — Ironman 50–99</title>
+<meta name="theme-color" content="#1b1710">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect width='8' height='8' fill='%231b1710'/%3E%3Crect x='2' y='1' width='4' height='3' fill='%23e8e3d0'/%3E%3Crect x='1' y='2' width='6' height='2' fill='%23e8e3d0'/%3E%3Crect x='2' y='3' width='1' height='1' fill='%23a01414'/%3E%3Crect x='5' y='3' width='1' height='1' fill='%23a01414'/%3E%3Crect x='3' y='5' width='2' height='1' fill='%23e8e3d0'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%23e8e3d0'/%3E%3Crect x='5' y='6' width='1' height='1' fill='%23e8e3d0'/%3E%3C/svg%3E">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
@@ -110,6 +116,57 @@
   .readout .good { color: var(--green); } .readout .warn { color: var(--yellow); } .readout .bad { color: var(--red); }
   .readout .mile { color: #7ec9ff; }
   .dnote .pwarn { color: #a01414; }
+
+  /* ---------- OSRS-style number spinners ---------- */
+  .stats input[type=number]::-webkit-inner-spin-button,
+  .stats input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .stats input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+  .numwrap { display: inline-flex; align-items: stretch; }
+  .numwrap input { border-right: none !important; }
+  .spin { display: flex; flex-direction: column; width: 20px; }
+  .spin span {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; line-height: 1; color: var(--orange); cursor: inherit;
+    background: linear-gradient(160deg, #52483a, #3e362b); border: 2px solid #000;
+    box-shadow: inset 1px 1px 0 var(--stone-hi), inset -1px -1px 0 var(--stone-lo);
+    text-shadow: 1px 1px 0 #000; user-select: none;
+  }
+  .spin span:first-child { border-bottom: 1px solid #000; }
+  .spin span:hover { color: var(--yellow); }
+  .spin span:active { box-shadow: inset 1px 1px 0 var(--stone-lo), inset -1px -1px 0 var(--stone-hi); }
+
+  /* menu keyboard highlight */
+  .menu .mopt.sel { background: rgba(0,0,0,0.35); }
+  .menu .mopt.sel .verb, .menu .mopt.sel .obj { color: var(--yellow); }
+
+  /* CRT scanlines */
+  body.crt::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 3px);
+    mix-blend-mode: multiply;
+  }
+  .crtbtn { position: fixed; right: 10px; bottom: 10px; z-index: 1000; opacity: 0.75; }
+  .crtbtn:hover { opacity: 1; }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 620px) {
+    body { padding: 14px 8px 46px; }
+    header h1 { font-size: 30px; }
+    header p { font-size: 15px; }
+    .brackets button { font-size: 18px; padding: 6px 10px 4px; }
+    .master-line { font-size: 17px; }
+    .stats { font-size: 16px; gap: 5px 7px; padding: 7px 8px 6px; }
+    .stats input { width: 50px; font-size: 19px; }
+    .chip, .pbtn { font-size: 15px; padding: 5px 8px 3px; }
+    .searchbox input { font-size: 21px; padding: 12px 14px 10px; }
+    .dialogue.show { flex-direction: column; gap: 8px; padding: 12px 12px 10px; }
+    .chathead { height: 68px; }
+    .dline { font-size: 21px; }
+    .dname { font-size: 20px; }
+    .wikiview { max-height: 420px; font-size: 15.5px; padding: 8px 10px; }
+    .wikiview table { font-size: 14px; }
+    .group li { font-size: 18px; }
+  }
 
   /* ---------- search + choose-option menu ---------- */
   .searchbox { position: relative; margin-bottom: 18px; z-index: 30; }
@@ -324,6 +381,7 @@
   <div class="advice stone" id="advice"></div>
   <div class="lists" id="lists"></div>
 
+  <span class="pbtn crtbtn" id="crtbtn" title="Toggle CRT scanlines">CRT</span>
   <footer>
     <span class="pts">Skips cost 30 points &bull; blocks cost 100 &bull; keep a ~300 point buffer.</span><br>
     Sourced from the Ironman Slayer Guide by ParasailerOSRS &amp; So Iron BRUH. Fan-made tool, not affiliated with Jagex.<br>
@@ -935,6 +993,18 @@ let cur = BRACKETS[1];
 function norm(s) { return s.toLowerCase().replace(/[^a-z ]/g, "").trim(); }
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
 
+function lev(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  const m = a.length, n = b.length;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const row = [i];
+    for (let j = 1; j <= n; j++)
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = row;
+  }
+  return prev[n];
+}
 function candidates(q) {
   q = norm(q);
   if (q.length < 2) return [];
@@ -951,22 +1021,37 @@ function candidates(q) {
     if (text === q) sc = 100;
     else if (text.startsWith(q)) sc = 80 - (text.length - q.length) * 0.1;
     else if (text.split(" ").some(w => w.startsWith(q))) sc = 60;
-    else if (text.includes(q)) sc = 40;
-    if (sc >= 40 && sc > (scored.get(name) || 0)) scored.set(name, sc);
+    else if (text.includes(q)) sc = 45;
+    else if (q.length >= 4) {   // typo tolerance
+      for (const w of text.split(" ")) {
+        if (w.length < 3) continue;
+        const d = Math.min(lev(q, w), lev(q, w.slice(0, Math.min(w.length, q.length + 1))));
+        if (d <= 2) sc = Math.max(sc, 44 - d * 4);
+      }
+    }
+    if (sc >= 36 && sc > (scored.get(name) || 0)) scored.set(name, sc);
   }
   return [...scored.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
 }
 
+let menuList = [], menuSel = -1;
 function showMenu(list) {
   const menu = document.getElementById("menu"), body = document.getElementById("mbody");
+  menuList = list.slice(0, 6); menuSel = -1;
   if (!list.length) { menu.className = "menu"; return; }
-  body.innerHTML = list.slice(0, 6).map(n => {
-    const st = cur.tasks[n][0];
-    return `<div class="mopt" onmousedown="pick('${n.replace(/'/g, "\\'")}')"><span class="verb">${VERBS[st] || "Check"}</span> <span class="obj">${n}</span></div>`;
+  body.innerHTML = menuList.map((n, i) => {
+    const st = effectiveTask(n)[0];
+    return `<div class="mopt" data-i="${i}" onmousedown="pick('${n.replace(/'/g, "\\'")}')"><span class="verb">${VERBS[st] || "Check"}</span> <span class="obj">${n}</span></div>`;
   }).join("") + `<div class="mopt" onmousedown="hideMenu()"><span class="verb">Cancel</span></div>`;
   menu.className = "menu show";
 }
-function hideMenu() { document.getElementById("menu").className = "menu"; }
+function hideMenu() { document.getElementById("menu").className = "menu"; menuSel = -1; }
+function moveSel(dir) {
+  if (!menuList.length) return;
+  menuSel = (menuSel + dir + menuList.length) % menuList.length;
+  document.querySelectorAll(".menu .mopt[data-i]").forEach(o =>
+    o.classList.toggle("sel", +o.dataset.i === menuSel));
+}
 
 function showVerdict(name) {
   const d = document.getElementById("dialogue");
@@ -1075,7 +1160,16 @@ input.addEventListener("input", () => {
   showMenu(list);
   showVerdict(list[0] || null);
 });
-input.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") hideMenu(); });
+input.addEventListener("keydown", e => {
+  const menuOpen = document.getElementById("menu").classList.contains("show");
+  if (e.key === "ArrowDown" && menuOpen) { e.preventDefault(); moveSel(1); }
+  else if (e.key === "ArrowUp" && menuOpen) { e.preventDefault(); moveSel(-1); }
+  else if (e.key === "Enter") {
+    if (menuOpen && menuList.length) pick(menuList[menuSel >= 0 ? menuSel : 0]);
+    else hideMenu();
+  }
+  else if (e.key === "Escape") hideMenu();
+});
 input.addEventListener("blur", () => setTimeout(hideMenu, 150));
 document.getElementById("lvl").addEventListener("input", e => {
   const v = parseInt(e.target.value, 10);
@@ -1117,6 +1211,27 @@ document.getElementById("dcont").addEventListener("click", () => {
   document.getElementById("dialogue").className = "dialogue";
   input.value = ""; input.focus();
 });
+// OSRS-style spinner buttons on every number input
+document.querySelectorAll(".stats input[type=number]").forEach(inp => {
+  const wrap = document.createElement("span"); wrap.className = "numwrap";
+  inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+  const spin = document.createElement("span"); spin.className = "spin";
+  spin.innerHTML = `<span>▲</span><span>▼</span>`;
+  wrap.appendChild(spin);
+  const [up, dn] = spin.children;
+  const step = d => { d > 0 ? inp.stepUp() : inp.stepDown(); inp.dispatchEvent(new Event("input")); };
+  up.addEventListener("mousedown", e => { e.preventDefault(); step(1); });
+  dn.addEventListener("mousedown", e => { e.preventDefault(); step(-1); });
+});
+
+// CRT scanline toggle
+const crtBtn = document.getElementById("crtbtn");
+if (prefGet("crt", false)) document.body.classList.add("crt");
+crtBtn.addEventListener("click", () => {
+  document.body.classList.toggle("crt");
+  prefSet("crt", document.body.classList.contains("crt"));
+});
+
 renderStats();
 renderPoints();
 setBracket(myLevel && myLevel >= 50 ? bracketForLevel(myLevel) : BRACKETS[1]);
