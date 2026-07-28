@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slayer Task Lookup — Ironman 50–99</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+  :root {
+    --stone: #494034;
+    --stone-hi: #6a5f4d;
+    --stone-lo: #2a231a;
+    --page: #1b1710;
+    --tan: #d8ccb4;
+    --tan-lo: #bcae90;
+    --orange: #ff981f;
+    --yellow: #ffff00;
+    --white: #ffffff;
+    --green: #00e000;
+    --red: #ff3030;
+    --maroon: #7a1f1f;
+    --gray: #b0b0b0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'VT323', monospace;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,0.14) 3px 4px),
+      repeating-linear-gradient(90deg, transparent 0 3px, rgba(0,0,0,0.10) 3px 4px),
+      radial-gradient(ellipse 120% 80% at 50% 0%, #2b2417 0%, var(--page) 70%);
+    color: var(--tan);
+    min-height: 100vh;
+    padding: 24px 14px 50px;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M2 2 L2 18 L7 13 L10 20 L13 19 L10 12 L17 12 Z' fill='%23f8c942' stroke='%23000' stroke-width='1.5'/></svg>") 2 2, auto;
+    image-rendering: pixelated;
+  }
+  .shadow { text-shadow: 2px 2px 0 #000; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+
+  /* ---------- stone panel chrome ---------- */
+  .stone {
+    background: linear-gradient(160deg, #52483a 0%, var(--stone) 55%, #3e362b 100%);
+    border: 2px solid #000;
+    box-shadow: inset 3px 3px 0 var(--stone-hi), inset -3px -3px 0 var(--stone-lo);
+  }
+
+  header { text-align: center; margin-bottom: 16px; }
+  header h1 {
+    font-size: clamp(38px, 7vw, 58px); font-weight: 400; letter-spacing: 2px;
+    color: var(--orange); text-shadow: 3px 3px 0 #000; line-height: 0.9;
+  }
+  header .skulls { color: var(--red); text-shadow: 2px 2px 0 #000; font-size: 22px; letter-spacing: 6px; }
+  header p { color: var(--tan-lo); font-size: 19px; text-shadow: 2px 2px 0 #000; margin-top: 4px; }
+
+  /* ---------- bracket tabs ---------- */
+  .brackets { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 10px; }
+  .brackets button {
+    font-family: 'VT323', monospace; font-size: 21px; letter-spacing: 1px;
+    padding: 6px 15px 4px; cursor: inherit;
+    color: var(--orange); text-shadow: 2px 2px 0 #000;
+    background: linear-gradient(160deg, #52483a, #3e362b);
+    border: 2px solid #000;
+    box-shadow: inset 2px 2px 0 var(--stone-hi), inset -2px -2px 0 var(--stone-lo);
+  }
+  .brackets button:hover { color: var(--yellow); }
+  .brackets button.on {
+    color: var(--white);
+    background: linear-gradient(160deg, #8a2f20, #6b1f14);
+    box-shadow: inset 2px 2px 0 #b0503c, inset -2px -2px 0 #40100a;
+  }
+  .master-line { text-align: center; font-size: 20px; color: var(--tan-lo); text-shadow: 2px 2px 0 #000; margin-bottom: 14px; }
+  .master-line b { color: var(--orange); font-weight: 400; }
+
+  /* ---------- search + choose-option menu ---------- */
+  .searchbox { position: relative; margin-bottom: 18px; z-index: 30; }
+  .searchbox input {
+    width: 100%; padding: 10px 16px 8px; font-size: 26px;
+    font-family: 'VT323', monospace; letter-spacing: 1px;
+    background: #16120c; color: var(--yellow); text-shadow: 2px 2px 0 #000;
+    border: 2px solid #000; outline: none;
+    box-shadow: inset 3px 3px 0 #000, inset -2px -2px 0 #352c20, 0 0 0 2px var(--stone-lo), 0 0 0 4px #000;
+    caret-color: var(--yellow);
+  }
+  .searchbox input::placeholder { color: #6e5f47; text-shadow: none; }
+  .menu {
+    display: none; position: absolute; top: calc(100% + 2px); left: 8px; min-width: 320px;
+    border: 1px solid #000; z-index: 40;
+  }
+  .menu.show { display: block; }
+  .menu .mhead {
+    background: #5d5447; color: #c9c1b2; font-size: 19px; letter-spacing: 1px;
+    padding: 3px 10px 1px; border-bottom: 1px solid #000; text-shadow: 1px 1px 0 #000;
+  }
+  .menu .mbody { background: #6b6254; padding: 2px 0; }
+  .menu .mopt {
+    font-size: 21px; padding: 2px 10px 0; cursor: inherit; color: var(--white);
+    text-shadow: 1px 1px 0 #000; white-space: nowrap;
+  }
+  .menu .mopt .verb { color: var(--white); }
+  .menu .mopt .obj { color: var(--orange); }
+  .menu .mopt:hover { background: rgba(0,0,0,0.25); }
+  .menu .mopt:hover .verb, .menu .mopt:hover .obj { color: var(--yellow); }
+
+  /* ---------- dialogue verdict ---------- */
+  .dialogue {
+    display: none; position: relative;
+    background: var(--tan);
+    border: 2px solid #5d4a32; outline: 2px solid #000;
+    box-shadow: inset 0 0 0 2px #efe6d0, inset 0 0 0 4px #b9a67f;
+    padding: 14px 18px 12px; margin: 0 4px 22px;
+    animation: pop 0.15s steps(3);
+  }
+  @keyframes pop { from { transform: scale(0.96); } to { transform: scale(1); } }
+  .dialogue.show { display: flex; gap: 16px; align-items: center; }
+  .chathead { flex: 0 0 auto; width: auto; height: 96px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.35)); }
+  .dtext { flex: 1; text-align: center; }
+  .dname { font-size: 24px; color: #8b1a1a; margin-bottom: 2px; }
+  .dline { font-size: 25px; color: #17130c; line-height: 1.1; }
+  .dline .vword-do { color: #0a7d0a; } .dline .vword-skip { color: #9a6a00; }
+  .dline .vword-block { color: #a01414; } .dline .vword-gray { color: #4a4a4a; }
+  .dline .vword-info { color: #14456b; }
+  .dnote { font-size: 20px; color: #4a3d28; margin-top: 6px; line-height: 1.1; }
+  .dcont { font-size: 18px; color: #14456b; margin-top: 8px; }
+
+  /* hitsplat + xp drop */
+  .splat {
+    position: absolute; right: 26px; top: -14px; width: 52px; height: 52px;
+    display: none; align-items: center; justify-content: center;
+    color: var(--white); font-size: 24px; text-shadow: 1px 1px 0 #000;
+    clip-path: polygon(50% 0%, 63% 12%, 82% 7%, 82% 26%, 100% 34%, 88% 50%, 100% 66%, 82% 74%, 82% 93%, 63% 88%, 50% 100%, 37% 88%, 18% 93%, 18% 74%, 0% 66%, 12% 50%, 0% 34%, 18% 26%, 18% 7%, 37% 12%);
+    animation: splatpop 0.25s steps(4);
+  }
+  @keyframes splatpop { from { transform: scale(0.4); } to { transform: scale(1); } }
+  .splat.red { background: #c01e1e; display: flex; }
+  .splat.blue { background: #2e5e9e; display: flex; }
+  .xpdrop {
+    position: absolute; right: 30px; top: 6px; font-size: 24px; color: var(--white);
+    text-shadow: 2px 2px 0 #000; display: none; pointer-events: none;
+  }
+  .xpdrop.show { display: block; animation: rise 1.4s linear forwards; }
+  @keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
+
+  /* ---------- endgame advice ---------- */
+  .advice {
+    display: none; padding: 12px 16px; margin: 0 4px 20px;
+    font-size: 21px; line-height: 1.25; color: var(--tan);
+    text-shadow: 1px 1px 0 #000;
+  }
+  .advice.show { display: block; }
+  .advice b { color: var(--orange); font-weight: 400; }
+
+  /* ---------- task lists ---------- */
+  .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 10px; }
+  .group h3 {
+    font-size: 22px; letter-spacing: 2px; font-weight: 400;
+    padding: 7px 12px 4px; border-bottom: 2px solid #000;
+    text-shadow: 2px 2px 0 #000;
+    background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.05));
+  }
+  .g-do h3 { color: var(--green); } .g-skip h3 { color: var(--yellow); }
+  .g-block h3 { color: var(--red); } .g-gray h3 { color: var(--gray); }
+  .group ul { list-style: none; padding: 6px 0 8px; }
+  .group li {
+    padding: 3px 12px 2px; font-size: 20px; display: flex; flex-wrap: wrap;
+    justify-content: space-between; align-items: center; gap: 0 10px; cursor: inherit;
+  }
+  .group li .n { color: var(--orange); text-shadow: 1px 1px 0 #000; white-space: nowrap; }
+  .group li:hover { background: rgba(0,0,0,0.28); }
+  .group li:hover .n { color: var(--yellow); }
+  .group li .t {
+    flex-basis: 100%; font-size: 16px; color: var(--tan-lo); text-align: left;
+    text-shadow: 1px 1px 0 #000; line-height: 1.05; padding-bottom: 2px;
+  }
+  .mark {
+    flex: 0 0 auto; width: 22px; height: 22px; font-size: 17px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: #352e24; border: 1px solid #000; color: #6e5f47;
+    box-shadow: inset 1px 1px 0 var(--stone-hi), inset -1px -1px 0 var(--stone-lo);
+    text-shadow: 1px 1px 0 #000;
+  }
+  .mark:hover { color: var(--tan); }
+  .mark.on { color: var(--green); background: #1e2a18; }
+  .dmark { font-size: 20px; color: #0a7d0a; margin-top: 4px; }
+
+  footer { text-align: center; margin-top: 26px; font-size: 18px; color: #857459; line-height: 1.35; text-shadow: 1px 1px 0 #000; }
+  footer .pts { color: var(--tan-lo); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="skulls">☠ ☠ ☠</div>
+    <h1 class="shadow">SLAYER TASK LOOKUP</h1>
+    <p>Ironman 50–99 &bull; based on the BRUHsailer guide &bull; pick your bracket, type your task</p>
+  </header>
+
+  <div class="brackets" id="brackets"></div>
+  <div class="master-line" id="masterline"></div>
+
+  <div class="searchbox">
+    <input id="search" type="text" placeholder="Type your task... e.g. hellhounds, gorillas, nechs" autocomplete="off" spellcheck="false" autofocus>
+    <div class="menu" id="menu">
+      <div class="mhead">Choose Option</div>
+      <div class="mbody" id="mbody"></div>
+    </div>
+  </div>
+
+  <div class="dialogue" id="dialogue">
+    <img class="chathead" id="chathead" alt="">
+
+    <div class="dtext">
+      <div class="dname" id="dname">Duradel</div>
+      <div class="dline" id="dline"></div>
+      <div class="dnote" id="dnote"></div>
+      <div class="dcont">Click here to continue</div>
+    </div>
+    <div class="splat" id="splat"></div>
+    <div class="xpdrop" id="xpdrop"></div>
+  </div>
+
+  <div class="advice stone" id="advice"></div>
+  <div class="lists" id="lists"></div>
+
+  <footer>
+    <span class="pts">Skips cost 30 points &bull; blocks cost 100 &bull; keep a ~300 point buffer.</span><br>
+    Sourced from the Ironman Slayer Guide by ParasailerOSRS &amp; So Iron BRUH. Fan-made tool, not affiliated with Jagex.<br>
+    Chathead images from the <a href="https://oldschool.runescape.wiki" style="color:#a08b63">OSRS Wiki</a> (CC BY-NC-SA), game assets &copy; Jagex. Tick the ✔ next to a block once you've bought it in game — it's remembered on this device.
+  </footer>
+</div>
+
+<script>
+const D = "do", S = "skip", B = "block", U = "dontunlock", L = "locked";
+
+const ALIASES = {
+  "metal dragons": ["iron dragon","steel dragon","mithril dragon","addy","adamant dragon","rune dragon"],
+  "black demons": ["demonic gorilla","gorilla","gorillas","zenyte"],
+  "greater demons": ["tormented demon","tormented","kril","k'ril"],
+  "blue dragons": ["vorkath"],
+  "wyrms": ["lava strykewyrm","strykewyrm","charred isle"],
+  "lizardmen": ["shaman","shamans","lizardman","dwh","warhammer"],
+  "abyssal demons": ["abby demons","abbys","abyssals"],
+  "nechryael": ["nech","nechs","nechryaels"],
+  "tzhaar": ["jad","fight caves"],
+  "fossil island wyverns": ["ancient wyvern","fiw"],
+  "boss tasks": ["boss","bosses"],
+  "cave kraken": ["kraken"],
+  "smoke devils": ["thermy","smoke devil"],
+  "mutated zygomites": ["zygomite","zygomites","fungi"],
+  "aberrant spectres": ["spectre","spectres","abhorrent"],
+  "spiritual creatures": ["spiritual mage","spiritual ranger","spiritual warrior"],
+  "skeletal wyverns": ["skelly wyvern"],
+  "dagannoth": ["dags","daggs","dagannoths"],
+  "dust devils": ["dusties"],
+  "araxytes": ["araxxor","arax","spider"],
+  "kalphite": ["kalphites","kq","kalphite queen"],
+  "hellhounds": ["hellhound","cerberus","cerb"],
+  "warped creatures": ["warped terrorbird","terrorbird","warped tortoise"],
+  "trolls": ["ice troll","nmz troll"],
+  "custodian stalkers": ["stalker","custodian"],
+  "dark beasts": ["dark beast"],
+  "drakes": ["drake"],
+  "gargoyles": ["gargs","garg","grotesque"],
+  "basilisks": ["basilisk knight","basilisk"],
+  "elves": ["elf","iorwerth","lletya"],
+  "red dragons": ["red dragon"],
+  "black dragons": ["black dragon","baby black"],
+  "frost dragons": ["frost dragon"],
+  "hydra": ["alchemical hydra","hydras"],
+  "turoth": ["turoths"],
+  "brine rats": ["brine rat","brine sabre"],
+  "suqahs": ["suqah","lunar isle"],
+  "bloodveld": ["bloodvelds","velds"],
+  "waterfiends": ["waterfiend"],
+  "cave horrors": ["cave horror","horrors"],
+  "ankou": ["ankous"],
+  "fire giants": ["fire giant"],
+  "kurask": ["kurasks"],
+  "aviansies": ["aviansie","kree","armadyl"],
+  "vampyres": ["vampyre","vyrewatch","vyres"],
+  "aquanites": ["aquanite"],
+  "gryphons": ["gryphon"]
+};
+
+const BRACKETS = [
+  { id: "5073", label: "50–73", master: "Nieve", sub: "until ~100 combat — points are tight, do almost everything",
+    tasks: {
+      "Metal dragons": [B, "The only block worth it at Nieve — other blocks don't carry over to Duradel."],
+      "Spiritual creatures": [S, "Always skip — one of the two worst tasks at these levels."],
+      "Turoth": [S, "Always skip — the other one of the worst."],
+      "Elves": ["special", "Do until you have 28+ teleport crystals, then skip forever."],
+      "Brine rats": ["special", "Do once for the brine sabre (clue item) if you want it, then skip."],
+      "Trolls": ["special", "Ice trolls on Neitiznot for a granite shield, then do AFK NMZ trolls instead."],
+      "Warped creatures": ["special", "Unlock only if you want a warped sceptre — kill terrorbirds, then re-lock."],
+      "Ankou": [D, "Barrage it."], "Dagannoth": [D, "Barrage it."], "Dust devils": [D, "Barrage it."],
+      "Custodian stalkers": [D, "Barrage — target the mature ones, the Antler Guard helps chinning later."],
+      "Wyrms": [D, "Lava strykewyrms on Charred Isle — drops dragon metal sheets for sailing."],
+      "Fire giants": [D, "In the giant's den, prioritise the club-wielding level 109s."],
+      "Aberrant spectres": [D, "Wear a nosepeg + salve (e) until you own a slayer helm (i)."],
+      "Cave horrors": [D, "Protect from melee — no witchwood icon needed."]
+    },
+    fallback: [D, "Default at Nieve: just do it. You need the points more than the time."] },
+
+  { id: "7380", label: "73–80", master: "Duradel", sub: "start your real block list at 100 combat",
+    tasks: {
+      "Lizardmen": [D, "Hunt the dragon warhammer at shamans."],
+      "Black dragons": [D, ""], "Dagannoth": [D, ""], "Gargoyles": [D, "Skip later if points allow."],
+      "Black demons": [D, "Demonic gorillas — start collecting zenytes."],
+      "Wyrms": [D, "Lava strykewyrms."], "Ankou": [D, "Barrage."], "Dust devils": [D, "Barrage."],
+      "Aberrant spectres": [S, ""], "Fire giants": [S, ""],
+      "Fossil Island wyverns": [S, "Or buy the permanent 500-point block."],
+      "Skeletal wyverns": [S, ""], "Spiritual creatures": [S, ""],
+      "Trolls": [S, "Or do AFK NMZ trolls."], "Blue dragons": [S, "Or kill Vorkath if you're up for it."],
+      "Cave horrors": [S, ""], "Elves": [S, ""], "Kurask": [S, ""],
+      "Mutated zygomites": [S, ""], "Waterfiends": [S, ""],
+      "Metal dragons": [B, "Most common task in the pool."], "Hellhounds": [B, ""],
+      "Greater demons": [B, ""], "Kalphite": [B, ""], "Bloodveld": [B, ""], "Suqahs": [B, ""],
+      "Boss tasks": [U, ""], "Tzhaar": [U, ""], "Aviansies": [U, ""], "Red dragons": [U, ""],
+      "Vampyres": [U, ""], "Warped creatures": [U, ""], "Basilisks": [U, ""], "Gryphons": [U, ""],
+      "Frost dragons": [U, "Needs 87 sailing anyway."], "Aquanites": [U, "Optional unlock."],
+      "Abyssal demons": [L, "Needs 85 Slayer."], "Dark beasts": [L, "Needs 90 Slayer."],
+      "Araxytes": [L, "Needs 92 Slayer."], "Cave kraken": [L, "Needs 87 Slayer."],
+      "Nechryael": [L, "Needs 80 Slayer."], "Smoke devils": [L, "Needs 93 Slayer."],
+      "Drakes": [L, "Needs 84 Slayer."]
+    },
+    fallback: null },
+
+  { id: "8087", label: "80–87", master: "Duradel", sub: "nechryaels arrive and carry your points",
+    tasks: {
+      "Abyssal demons": [D, "From 85 — barrage in the catacombs, imbued heart chance."],
+      "Lizardmen": [D, "Until the DWH drops."], "Black dragons": [D, ""], "Dagannoth": [D, ""],
+      "Greater demons": [D, "Tormented demons — only with arclight and 20+ ancient shards banked."],
+      "Nechryael": [D, "New — your best task. Extend it."],
+      "Frost dragons": [D, "If you took the optional unlock."],
+      "Wyrms": [D, "Lava strykewyrms."], "Ankou": [D, "Barrage."], "Dust devils": [D, "Barrage."],
+      "Blue dragons": [D, "Vorkath!"],
+      "Bloodveld": [S, "Was a block last bracket — now just skip."],
+      "Gargoyles": [S, "No longer worth doing."],
+      "Aberrant spectres": [S, ""], "Fire giants": [S, ""], "Skeletal wyverns": [S, ""],
+      "Spiritual creatures": [S, ""], "Trolls": [S, "Or NMZ trolls."], "Cave horrors": [S, ""],
+      "Elves": [S, ""], "Kurask": [S, ""], "Mutated zygomites": [S, ""], "Waterfiends": [S, ""],
+      "Metal dragons": [B, "Most common task in the pool."], "Hellhounds": [B, ""], "Kalphite": [B, ""],
+      "Black demons": [B, "Block once you have your zenytes."],
+      "Drakes": [B, "New this bracket — terrible task."], "Suqahs": [B, ""],
+      "Fossil Island wyverns": [B, "The purchased 500-point block."],
+      "Boss tasks": [U, ""], "Tzhaar": [U, ""], "Aviansies": [U, ""], "Red dragons": [U, ""],
+      "Vampyres": [U, ""], "Warped creatures": [U, ""], "Basilisks": [U, ""], "Gryphons": [U, ""],
+      "Aquanites": [U, "Optional unlock."],
+      "Dark beasts": [L, "Needs 90 Slayer."], "Araxytes": [L, "Needs 92 Slayer."],
+      "Cave kraken": [L, "Needs 87 Slayer."], "Smoke devils": [L, "Needs 93 Slayer."]
+    },
+    fallback: null },
+
+  { id: "8793", label: "87–93", master: "Duradel", sub: "shuffle blocks around your bossing goals",
+    tasks: {
+      "Nechryael": [D, "Your point engine — keep it extended."],
+      "Abyssal demons": [D, "Splash-lure with a trident so they can't teleport."],
+      "Cave kraken": [D, "New at 87 — do it for the trident + tentacle, then block it."],
+      "Dark beasts": [D, "New at 90 — bandos + whip/fang, protect melee."],
+      "Araxytes": [D, "From 92 — extend it, and camp Araxxor for rancour + halberd."],
+      "Lizardmen": [D, "Until the DWH drops."], "Dagannoth": [D, ""], "Black dragons": [D, ""],
+      "Ankou": [D, "Barrage."], "Dust devils": [D, "Barrage."],
+      "Blue dragons": [D, "Vorkath!"], "Wyrms": [D, "Lava strykewyrms."],
+      "Frost dragons": [D, "If unlocked."],
+      "Bloodveld": [S, ""], "Gargoyles": [S, ""], "Aberrant spectres": [S, ""], "Fire giants": [S, ""],
+      "Skeletal wyverns": [S, ""], "Spiritual creatures": [S, ""], "Trolls": [S, "Or NMZ trolls."],
+      "Cave horrors": [S, ""], "Elves": [S, ""], "Kurask": [S, ""],
+      "Mutated zygomites": [S, ""], "Waterfiends": [S, ""],
+      "Metal dragons": [B, ""], "Hellhounds": [B, "Unblock temporarily to farm Cerberus."],
+      "Kalphite": [B, "Unblock temporarily for Kalphite Queen (desert elite)."],
+      "Greater demons": [B, "Re-block once tormented demons are done."],
+      "Drakes": [B, ""], "Black demons": [B, "Unblock if you still need zenytes."],
+      "Suqahs": [B, ""], "Fossil Island wyverns": [B, "Bought slot."],
+      "Boss tasks": [U, ""], "Tzhaar": [U, ""], "Aviansies": [U, ""], "Red dragons": [U, ""],
+      "Vampyres": [U, ""], "Warped creatures": [U, ""], "Gryphons": [U, ""],
+      "Basilisks": [U, "Optional unlock for the basilisk jaw."], "Aquanites": [U, "Optional unlock."],
+      "Hydra": ["special", "At 90, boost +5 to kill one Hydra for the Kourend elite diary."],
+      "Smoke devils": [L, "Needs 93 Slayer — that's the next bracket."]
+    },
+    fallback: null },
+
+  { id: "9395", label: "93–95", master: "Duradel", sub: "smoke devils: the best xp in the game",
+    tasks: {
+      "Smoke devils": [D, "New — best slayer xp/hr. Mystic robes + cannon, kill the small ones."],
+      "Nechryael": [D, "Extended."], "Abyssal demons": [D, "Imbued heart hunting."],
+      "Dark beasts": [D, ""], "Araxytes": [D, "Extended."], "Dagannoth": [D, ""],
+      "Black dragons": [D, ""], "Ankou": [D, "Barrage."], "Dust devils": [D, "Barrage."],
+      "Blue dragons": [D, "Vorkath!"], "Wyrms": [D, "Lava strykewyrms."],
+      "Frost dragons": [D, "If unlocked."],
+      "Lizardmen": [D, "Only if the DWH still hasn't dropped."],
+      "Bloodveld": [S, ""], "Gargoyles": [S, ""], "Aberrant spectres": [S, ""], "Fire giants": [S, ""],
+      "Skeletal wyverns": [S, ""], "Spiritual creatures": [S, ""], "Trolls": [S, "Or NMZ trolls."],
+      "Cave horrors": [S, ""], "Elves": [S, ""], "Kurask": [S, ""],
+      "Mutated zygomites": [S, ""], "Waterfiends": [S, ""],
+      "Metal dragons": [B, ""], "Hellhounds": [B, ""], "Kalphite": [B, ""],
+      "Greater demons": [B, "Once tormented demons are done."], "Drakes": [B, ""],
+      "Black demons": [B, "Unblock if you still need zenytes."], "Suqahs": [B, ""],
+      "Cave kraken": [B, "After the trident + combat achievements."],
+      "Fossil Island wyverns": [B, "Bought slot."],
+      "Boss tasks": [U, ""], "Tzhaar": [U, ""], "Aviansies": [U, ""], "Red dragons": [U, ""],
+      "Vampyres": [U, ""], "Warped creatures": [U, ""], "Gryphons": [U, ""],
+      "Basilisks": [U, "Optional, for the jaw."], "Aquanites": [U, "Optional unlock."]
+    },
+    fallback: null },
+
+  { id: "9599", label: "95–99", master: "Konar / Turael", sub: "the lists retire — hunt Hydra, then freestyle",
+    advice: "From 95 the block/skip lists stop mattering. Move to <b>Konar</b> and hunt <b>Hydra tasks</b> for ferocious gloves and the dragon hunter lance — but don't build a Konar block list, since your Duradel blocks don't carry over. <b>Turael-skipping</b> to reroll cheap tasks until Hydra appears is the relaxed play. From 97, pick a goal (imbued heart, pets, pure xp) and hand-pick tasks for it: smoke devils remain the best xp, abyssal demons and araxytes are the heart hunters, and red dragons are an optional comfy unlock with fang or lance.",
+    tasks: {
+      "Hydra": [D, "The one grind that matters — fang, hasta or bowfa all work, fang is strongest."],
+      "Smoke devils": [D, "Still the best pure xp in the game."],
+      "Abyssal demons": [D, "Imbued heart hunting."], "Araxytes": [D, "Imbued heart hunting."],
+      "Red dragons": [D, "Optional unlock now — comfy points with fang/lance."]
+    },
+    fallback: [D, "Your call at this point — do it if it serves your goal, otherwise Turael-skip past it. Streak no longer matters."] }
+];
+
+// ------- dialogue voice lines -------
+const LINES = {
+  do: [
+    "«T»? A fine task. <span class='vword-do'>GET OUT THERE AND SLAY.</span>",
+    "«T»? <span class='vword-do'>DO IT.</span> They won't kill themselves.",
+    "Ah, «T». <span class='vword-do'>GOOD TASK.</span> Off you go."
+  ],
+  skip: [
+    "«T»? Pfah. <span class='vword-skip'>SKIP IT</span> — 30 points well spent.",
+    "«T»? Not worth your time. <span class='vword-skip'>REROLL IT.</span>",
+    "I wouldn't bother with «T». <span class='vword-skip'>SKIP.</span>"
+  ],
+  block: [
+    "«T»?! <span class='vword-block'>BLOCK IT</span> and never speak of it again.",
+    "«T» — a waste of a slayer's talents. <span class='vword-block'>BLOCK.</span>",
+    "No. <span class='vword-block'>BLOCK</span> «T». Trust me on this one."
+  ],
+  dontunlock: [
+    "Don't you dare unlock «T». <span class='vword-gray'>KEEP IT LOCKED.</span>",
+    "«T»? <span class='vword-gray'>NEVER UNLOCK IT</span> — it only pollutes the pool."
+  ],
+  locked: [
+    "You can't be assigned «T» yet, adventurer. <span class='vword-gray'>COME BACK LATER.</span>"
+  ],
+  special: [
+    "«T»? <span class='vword-info'>A SPECIAL CASE</span> — listen closely."
+  ],
+  notfound: [
+    "\"«T»\"? Never heard of it, adventurer. Check your spelling — or it belongs to another bracket."
+  ]
+};
+const SPLATS = { skip: ["blue", "30"], block: ["red", "100"] };
+const XPDROPS = { do: "+ Slayer xp", special: "+ Slayer xp" };
+const VERBS = { do: "Kill", skip: "Skip", block: "Block", dontunlock: "Avoid", locked: "Wait-for", special: "Consider" };
+const GROUP_ORDER = [
+  ["do", "✔ DO"], ["special", "★ SPECIAL"], ["skip", "↺ SKIP"],
+  ["block", "✖ BLOCK"], ["dontunlock", "⚠ DON'T UNLOCK"], ["locked", "🔒 LOCKED"]
+];
+
+// ------- slayer master chatheads (OSRS Wiki, embedded) -------
+const HEADS = {"Duradel": "data:image/png;base64,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", "Nieve": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABRCAMAAABVPVDSAAABUFBMVEUAAAC/k2zBlW7Upn/LshjDlm+9kWvNtBjSo3nFmHDVqYWumBWyiWW2jWe3oBW5jmm7j2q9pRiVgxG/qBiWc1WYhRGZdVbHmXHIrxjJm3LLnHObiBHNnnSijhHPoHXRoXekf13TpHypgmDUqIKshGG6oxW0nhXTuRqOfBGge1uPblGRcFKlkBWokxWRfxHFrBirlRWUclSuhWKwh2R8bQ3QthjWrYrWrIeMbFBdpInCqhieeVrYr43avxrgxBrixhrnyx3YsI+xmxXdwRq0i2Z4ag3ZspHas5SifVy2hFXVuxqLeRGfixGbd1ejdkyAKg10Jg25hVbYvRr08vIVERGCZEnl4uKygVLo5eWKak7s6enr5+d0Zg1UQC6vf1F5XUVgVAlnUDptJA20glSHdg3lyBqngF5tXg3n4+NxVj9dSDV0WELu7Ozv7e3w7u6tfVA2qZQsAAAAAXRSTlMAQObYZgAABrpJREFUeF6VmAWP5LoSRjvUyMwMw8w8ywwX4TEz/H9+p5y4k00y9+0eaTWrker05yrbbU3iAd7CLvwJnsFfE1/GtrCzQum+REDNPuQ8Hnt8tkCKH2uWHsVi8XMVOZAKj8WKInyOQNIWoeJR81gslrC9/v8ES1iAW3W5AtUCduBnBfqzpWYP2i6i8A2NhwX6s91aG1I2iEoUsA+9Xu8hgY7dhlQqdaJYKUT9GN7CemwzdHAbpHRNQKRj+IZq9U2MQC+aCl0OOoTXiiUMICZBG1i0X+4bdAplyEGvF7O5bQiWv379ehXBX4YeRVTQjhdoA4gBlkAXwk2oIQgZICQYtcHtQmM9vIP2wvnhJGQYtvdADYImRARRg9iCgv5qDYNeNXwGL+MFQYPdtf0IjfAdhMAOVgupUIRuyh1lLkdBoAk9KCKIGFKhCB0EbgQZZEhQqxFSioOCUISWWFQEzlSgCQ1YIgBd/bVAYP07JbAzMyLYNaBpjZCgUokI7KAA2o6lIyAInOlqDzyBroaUTiC4gonqJQnUmVwJdkWwWEQFnMygYM9Mu8e7UlG7MbAEzqcnCBgQ+AYRXBojBCoCgu1tX1DljtGCNam9ASoQ2IBUHKnL5MjdXLUKd2fgem3sIigWRaAXAOgYuRK4pGrJIfFUhAWMx6smrq8PBjhFjoFP/1Rw4nJ5WShfr6212xUCsIaX/hTevBkM+I0vANU1z4CrDZmjZDIp9ZWcEBgj7GgBBASeIpnkRs1k5oZhJImfz+9AQMAatpnsSnANMxgORUBrTdNstfr9sWkaUABOU1Bwfn7oC24ePXp0CpaVTreB0TpOt2tZ1oZjmr+8+FuyUKgnBoOg4ODgoFSpKAHtQwDZbNaybHj9dafT7/cnk0kz8+OPF99+e1GeUvXWF+zuvoNMWwRe/XNPIc6bm/90rFPh4Pvv/yWCXzDAIKreMIZeB5RAGa6v1+DJk2++mc1E0Ky3/n0BhSsEvYDgJTjOaLQGXgLX8IJAT55cDCeTFyLYqNcdacdRMySYTkvgCtwA8EL+3dzc3t5a1unz5/TUGtfrdcNoteZbIcEhtFqjkVrCSoDhxe3t3d3dLKvm0u/P61Aul9jECHzD+vpREtLZExbg1wt3f4bsNbCCzJEIpoWnGwmdQAvWD0ul4TBLF4MC4R5OQe2MghJMp+dhAeSestvk2GuBEBYklWDejBU08vlOhzv4GgJtUAKNIYLx/DxOwMuHTo5SqTPfAEpw5glaLQRXV1vxgn2uNQ6JbVnasBIQXxhCvdkcb24mQoI3sL+/DXnwDVpwrSJYYGxtbW0iUIQFih2mGTGcKsEMTPO7jYcFOdgvFNLp2SxgkB6cYRC63Uz+n4SIE3DDLCGXM4yAAVSCbJaNlBUYNgnC7AIXinrUl0ppbdACas/U2ZpB8ycCRBI0BuA9qM1hwKAF2bOzdLrfd5x35+dRAVOsVnNQq0C5nIbZqW9AQPT5fF6Yvosdwq5LpbJXg30iQBaDAgETmExKJdM8elmvs41C8PES4C3sQa7cURHI4AnoHTd0JtNqFQpXV1c/RVrYAPWGttuXkHPcCF4GGaMFI6zJ5EuIdKAHS+jxoq5BsutGIAPTu7/nfxbww3Gm03fRGUr4Itj6AZMZqQhwCiKYwIcPHz5+/PiHyBCq1QEswP0KZBCGjnAmA7jPvnr1R/iN8P4gZobbQJmNwAZUmYyOwDa+n0y+evXqhx/+C+/fN6Mr0AHkTed9+esIgADPV0CA0tXVr6Mr0AFOtKBWLLZa6bQFk4mVRUAPuAySRxsbGzHHYAfoHAF8g2mmJ5AGKysgK/xlPB7/Ixqgug+XvHTVo9QV1JZ8TWgmM2AflKcQaSHkgFcAAfRrDMxOpzPUWMLQ4DT8PvYgQ1s/pbRgaUBf6HZdwzBzdHiYCFOFJfAe9B65nsHgOWRAR5DHAYc5n/97bIAiEOBTgWkm4UjeNgoRFJ7GB1jA6oW4JnAmHceEp2CajpNhZ3W7pd9GBA1wA9iewIvQAgcKMJ2aJoZutxt/F3oB4AbcV+1eBzJQgjlsffcrCuJXwCYkgBaQAdp96LSgDLweNjdFEL8Ctg2bR+IHBEPoCgbk8xvn57F/TerBQjahLfVPBDwI0oBiZWg2m8+exUXYATYhAbSAEAgmMII+MIw59QjiUJsQbkALcFmgJcyCx9Xx8fHvYg2VSpsAbv0tuIIZWJAWQ6bARYqgkYhlTwegGlQfziALboyOXAPHx4mHSEFIcAoicW9TZw6Jn0fK7hSqD4/Ak+BIUv6FPIdrEEm233+w4H9YT0n2lAiW+AAAAABJRU5ErkJggg==", "Konar": "data:image/png;base64,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"};
+
+// ------- my block list (persists via localStorage when available) -------
+let memMarks = [];
+function loadMarks() {
+  try { return new Set(JSON.parse(localStorage.getItem("slayerMarks") || "[]")); }
+  catch (e) { return new Set(memMarks); }
+}
+function saveMarks() {
+  try { localStorage.setItem("slayerMarks", JSON.stringify([...marks])); }
+  catch (e) { memMarks = [...marks]; }
+}
+let marks = loadMarks();
+function toggleMark(name) {
+  marks.has(name) ? marks.delete(name) : marks.add(name);
+  saveMarks();
+  renderLists();
+  const q = document.getElementById("search").value;
+  if (q.trim().length >= 2) showVerdict(candidates(q)[0] || null);
+}
+
+let cur = BRACKETS[1];
+function norm(s) { return s.toLowerCase().replace(/[^a-z ]/g, "").trim(); }
+function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+
+function candidates(q) {
+  q = norm(q);
+  if (q.length < 2) return [];
+  const names = Object.keys(cur.tasks);
+  const cands = [];
+  for (const n of names) cands.push([n, norm(n)]);
+  for (const [canon, aliases] of Object.entries(ALIASES)) {
+    const target = names.find(n => norm(n) === norm(canon));
+    if (target) for (const a of aliases) cands.push([target, norm(a)]);
+  }
+  const scored = new Map();
+  for (const [name, text] of cands) {
+    let sc = 0;
+    if (text === q) sc = 100;
+    else if (text.startsWith(q)) sc = 80 - (text.length - q.length) * 0.1;
+    else if (text.split(" ").some(w => w.startsWith(q))) sc = 60;
+    else if (text.includes(q)) sc = 40;
+    if (sc >= 40 && sc > (scored.get(name) || 0)) scored.set(name, sc);
+  }
+  return [...scored.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+}
+
+function showMenu(list) {
+  const menu = document.getElementById("menu"), body = document.getElementById("mbody");
+  if (!list.length) { menu.className = "menu"; return; }
+  body.innerHTML = list.slice(0, 6).map(n => {
+    const st = cur.tasks[n][0];
+    return `<div class="mopt" onmousedown="pick('${n.replace(/'/g, "\\'")}')"><span class="verb">${VERBS[st] || "Check"}</span> <span class="obj">${n}</span></div>`;
+  }).join("") + `<div class="mopt" onmousedown="hideMenu()"><span class="verb">Cancel</span></div>`;
+  menu.className = "menu show";
+}
+function hideMenu() { document.getElementById("menu").className = "menu"; }
+
+function showVerdict(name) {
+  const d = document.getElementById("dialogue");
+  const splat = document.getElementById("splat"), xp = document.getElementById("xpdrop");
+  splat.className = "splat"; xp.className = "xpdrop";
+  const q = document.getElementById("search").value.trim();
+  const masterName = cur.master.split(" ")[0];
+  document.getElementById("dname").textContent = masterName;
+  const head = document.getElementById("chathead");
+  head.src = HEADS[masterName] || HEADS.Duradel || "";
+
+  let st, note, taskLabel;
+  if (name) { [st, note] = cur.tasks[name]; taskLabel = name; }
+  else if (q.length >= 2 && cur.fallback) { [st, note] = cur.fallback; taskLabel = q; }
+  else if (q.length >= 2) { st = "notfound"; note = ""; taskLabel = q; }
+  else { d.className = "dialogue"; return; }
+
+  const pool = LINES[st] || LINES.notfound;
+  const line = pool[hash(taskLabel) % pool.length].replaceAll("«T»", `<b>${taskLabel}</b>`);
+  document.getElementById("dline").innerHTML = line;
+  const marked = name && marks.has(name);
+  document.getElementById("dnote").innerHTML =
+    (note ? note : "") + (marked ? `<div class="dmark">✔ Already on your block list.</div>` : "");
+  d.className = "dialogue show";
+  if (marked) return;
+
+  if (SPLATS[st]) { const [c, n] = SPLATS[st]; splat.className = "splat " + c; splat.textContent = n; }
+  else if (XPDROPS[st]) {
+    xp.textContent = XPDROPS[st]; void xp.offsetWidth; xp.className = "xpdrop show";
+  }
+}
+
+function renderLists() {
+  const el = document.getElementById("lists");
+  const groups = {};
+  for (const [name, [st, note]] of Object.entries(cur.tasks)) {
+    (groups[st] = groups[st] || []).push([name, note]);
+  }
+  el.innerHTML = GROUP_ORDER.filter(([st]) => groups[st]).map(([st, title]) => {
+    const gcls = { do: "g-do", special: "g-do", skip: "g-skip", block: "g-block", dontunlock: "g-gray", locked: "g-gray" }[st];
+    if (st === "block") {
+      const done = groups[st].filter(([n]) => marks.has(n)).length;
+      title += ` (${done}/${groups[st].length})`;
+    }
+    const items = groups[st].map(([n, t]) => {
+      const esc = n.replace(/'/g, "\\'");
+      const markBtn = st === "block"
+        ? `<span class="mark${marks.has(n) ? " on" : ""}" title="Tick when you've blocked this in game" onclick="event.stopPropagation();toggleMark('${esc}')">✔</span>`
+        : "";
+      return `<li onclick="pick('${esc}')"><span class="n">${n}</span>${markBtn}${t ? `<span class="t">${t}</span>` : ""}</li>`;
+    }).join("");
+    return `<div class="group stone ${gcls}"><h3>${title}</h3><ul>${items}</ul></div>`;
+  }).join("");
+}
+
+function pick(name) {
+  document.getElementById("search").value = name;
+  hideMenu();
+  showVerdict(name);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function setBracket(b) {
+  cur = b;
+  document.querySelectorAll(".brackets button").forEach(btn =>
+    btn.classList.toggle("on", btn.dataset.id === b.id));
+  document.getElementById("masterline").innerHTML = `<b>${b.master}</b> — ${b.sub}`;
+  const adv = document.getElementById("advice");
+  if (b.advice) { adv.className = "advice stone show"; adv.innerHTML = b.advice; }
+  else adv.className = "advice stone";
+  renderLists();
+  const q = document.getElementById("search").value;
+  showVerdict(candidates(q)[0] || null);
+}
+
+const bwrap = document.getElementById("brackets");
+BRACKETS.forEach(b => {
+  const btn = document.createElement("button");
+  btn.textContent = b.label;
+  btn.dataset.id = b.id;
+  btn.onclick = () => setBracket(b);
+  bwrap.appendChild(btn);
+});
+const input = document.getElementById("search");
+input.addEventListener("input", () => {
+  const list = candidates(input.value);
+  showMenu(list);
+  showVerdict(list[0] || null);
+});
+input.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") hideMenu(); });
+input.addEventListener("blur", () => setTimeout(hideMenu, 150));
+document.getElementById("dialogue").addEventListener("click", () => {
+  document.getElementById("dialogue").className = "dialogue";
+  input.value = ""; input.focus();
+});
+setBracket(BRACKETS[1]);
+</script>
+</body>
+</html>
