@@ -792,7 +792,7 @@ function buildIntel(taskName, showGear) {
 // ------- live wiki guide fetch (public MediaWiki API, CORS-enabled) -------
 function wkCacheGet(page) {
   try {
-    const raw = localStorage.getItem("wk:" + page);
+    const raw = localStorage.getItem("wk2:" + page);
     if (!raw) return null;
     const o = JSON.parse(raw);
     if (Date.now() - o.t > 7 * 864e5) return null;   // 7-day expiry
@@ -800,11 +800,11 @@ function wkCacheGet(page) {
   } catch (e) { return null; }
 }
 function wkCacheSet(page, html) {
-  try { localStorage.setItem("wk:" + page, JSON.stringify({ t: Date.now(), h: html })); }
+  try { localStorage.setItem("wk2:" + page, JSON.stringify({ t: Date.now(), h: html })); }
   catch (e) {
     try {   // quota — drop old wiki caches and retry once
-      Object.keys(localStorage).filter(k => k.startsWith("wk:")).forEach(k => localStorage.removeItem(k));
-      localStorage.setItem("wk:" + page, JSON.stringify({ t: Date.now(), h: html }));
+      Object.keys(localStorage).filter(k => k.startsWith("wk")).forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("wk2:" + page, JSON.stringify({ t: Date.now(), h: html }));
     } catch (e2) {}
   }
 }
