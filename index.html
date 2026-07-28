@@ -122,6 +122,21 @@
   .dline .vword-info { color: #14456b; }
   .dnote { font-size: 20px; color: #4a3d28; margin-top: 6px; line-height: 1.1; }
   .dcont { font-size: 18px; color: #14456b; margin-top: 8px; }
+  .intel { border-top: 2px solid #b9a67f; margin-top: 10px; padding-top: 8px; }
+  .ibtn {
+    display: inline-block; font-family: inherit; font-size: 19px; line-height: 1;
+    padding: 5px 12px 3px; margin: 0 3px 5px; cursor: inherit; text-decoration: none;
+    background: #c9bb9b; border: 2px solid #5d4a32; color: #17130c;
+    box-shadow: inset 1px 1px 0 #efe6d0, inset -1px -1px 0 #a5926c;
+  }
+  .ibtn:hover { color: #8b1a1a; }
+  .igallery { display: none; margin-top: 6px; }
+  .igallery.show { display: block; }
+  .igallery figure { margin: 8px 0 2px; }
+  .igallery img { width: 100%; border: 2px solid #5d4a32; display: block; image-rendering: auto; }
+  .igallery figcaption { font-size: 17px; color: #4a3d28; margin-top: 2px; }
+  .igallery .imiss { font-size: 17px; color: #8b1a1a; }
+  .inote { font-size: 17px; color: #4a3d28; margin-top: 4px; font-style: normal; }
 
   /* hitsplat + xp drop */
   .splat {
@@ -213,7 +228,8 @@
       <div class="dname" id="dname">Duradel</div>
       <div class="dline" id="dline"></div>
       <div class="dnote" id="dnote"></div>
-      <div class="dcont">Click here to continue</div>
+      <div class="intel" id="intel" style="display:none"></div>
+      <div class="dcont" id="dcont">Click here to close</div>
     </div>
     <div class="splat" id="splat"></div>
     <div class="xpdrop" id="xpdrop"></div>
@@ -297,7 +313,12 @@ const BRACKETS = [
       "Wyrms": [D, "Lava strykewyrms on Charred Isle — drops dragon metal sheets for sailing."],
       "Fire giants": [D, "In the giant's den, prioritise the club-wielding level 109s."],
       "Aberrant spectres": [D, "Wear a nosepeg + salve (e) until you own a slayer helm (i)."],
-      "Cave horrors": [D, "Protect from melee — no witchwood icon needed."]
+      "Cave horrors": [D, "Protect from melee — no witchwood icon needed."],
+      "Black dragons": [D, "Kill the baby black dragons."],
+      "Blue dragons": [D, "Kill the baby blue dragons."],
+      "Bloodveld": [D, ""],
+      "Fossil Island wyverns": [D, ""],
+      "Mutated zygomites": [D, ""]
     },
     fallback: [D, "Default at Nieve: just do it. You need the points more than the time."] },
 
@@ -475,6 +496,138 @@ function toggleMark(name) {
   if (q.trim().length >= 2) showVerdict(candidates(q)[0] || null);
 }
 
+// ------- per-bracket location & gear images (Parasailer's album via the guide) -------
+// loc/set are Google Drive file ids; missing fields inherit from earlier brackets.
+const MEDIA = {
+  "5073": {
+    "Aberrant spectres": { loc: ["1bbmOEOGvPcBS2LO0YU0cypMPSSWghham"], set: ["1OwwuFquw60ayqIsEinZWcdJQVfFXZyf1"] },
+    "Ankou": { loc: ["1V8OszJIFmrTpG1-QYKpivxn9B19dM0O_"], set: ["1LkZabNkk_VkvblpeUUygIdl59JBamSr2"] },
+    "Black dragons": { loc: ["17LCAkDKwauszgQwhJGySWJf-JPRrg7Ni"], set: ["11AWLTNcpCH_90LDdza8FeasaZEJjLNfI"], note: "Baby black dragons." },
+    "Blue dragons": { loc: ["1ctrRJ6W2yM1jziYtmeBS7Q9xb97gixhm"], set: ["1wcNnWE2Q792J4fHePESIvEuzoZwqB2FB"], note: "Baby blue dragons." },
+    "Bloodveld": { loc: ["1SpV_uMPKhFfCw1e88COoxDbdThI7QXy4","1DUnTEkChfBE5N0vMYa4HINwWvtF7OAIG"], set: ["1WxyVZUrhWSGy0U0ykRiItpNdRlV1ESZD","1iDydno8KiR8v4PGRyJguXkY-1QrPI73e"], note: "Two location options." },
+    "Cave horrors": { loc: ["1zlpzRkYsRHNBEEwzd8nMzB5sclLYpNM5"], set: ["11QY9VWu3uEXwlBvIVnRpSfQLiKpdiQeZ"] },
+    "Dagannoth": { loc: ["1ZipXCQaTqFt1QT6WMwC1vNlfIBK57u2d"], set: ["1MzVi3VgJRLwgtubW2V2BlNBOzpqtJwFi"] },
+    "Dust devils": { loc: ["1kYzKmDWsmhdA_fWLC8jJxsHlp0EcJoWo"], set: ["1hBlDstN6m6PDC1HWTHjDEaw1mIiM_tvt"] },
+    "Fire giants": { loc: ["1LzIgqgDkDBFFjsuYpFm_F3nrnN-F1ckc","1o_SCezBSUGGW-VaaAIaxk3-iy_d8o7yv"], set: ["1K3bAE9mB-pI_6sGC7MNZvGm53tcxTqeV"] },
+    "Fossil Island wyverns": { loc: ["1POVpPVyumC4Xay5vJ-RL6GR_FMYvKQ93"], set: ["1O_TK9A76Wty_Yi1Ko4hVA1IjMHSHVyVw"] },
+    "Mutated zygomites": { loc: ["1iJBYnLBdxLXxLoD72bupJeFvmkwk-d1G"], set: ["19i5Wwutwz0MrpIgy_tkF1wwmxDNZz2-V"] },
+    "Trolls": { loc: ["1HdDShjqYyeX26u7jIGKxdVbhBXMu4Lst","1EXL4STMYb8PvzD4m8BtJVkU9DgIjGNGW","170kFypzBCIgmVWYX0LCeNm7wIxWnuDAy"], set: ["14zEvWzqK3L_6H7tnqw2ro1MSsGZbcHHM","1QDRVT7eJcsChVofU3w4pKSd7PNDwG1Bu","10ht5HP5vASOj9Tt1HCKzAxtroo9kvpyh"] },
+    "Wyrms": { loc: ["1e-ctLC4Pu7msUNyxYFZGNn9iXxsVW_ji"], set: ["1945HKP8t8cTMifwN-oeBo_T-E9oXdTiy"], note: "Lava strykewyrms on Charred Isle." },
+    "Brine rats": { loc: ["1DwyJTLeg-6Pd6fXx01b2oDBUUh8sE2pH"], set: ["17IcBbQf82sCv-NYZMgrDxVHX6jK8f9PV"] },
+    "Elves": { set: ["11yc3eOL4y45ePAvPXC9EPiWsRuuRq_Nf"], note: "Kill them in Lletya." }
+  },
+  "7380": {
+    "Ankou": { set: ["1E5yOftvtQjqPS4cdSHXFgBZoCKNEcehK"] },
+    "Black dragons": { set: ["1XilueeJxD4e-Iy8EwYHDhm3kyN27s80i"] },
+    "Dagannoth": { set: ["13br0KN8ethOJaOqK7kVmAbSaI7T-oFlY"] },
+    "Black demons": { loc: ["1cNjgh8QXmA8mvYN2Ai_HpSAiSnGfnJzY"], set: ["1jFYu93pn0lcfRBKuJgySiT11ctofP7S3"], note: "Demonic gorillas — bowfa/melee swap setup." },
+    "Dust devils": { set: ["1s89vPuaaPD6YBRJHw2vM81oX5CdrEaXY"] },
+    "Gargoyles": { loc: ["1G1WJb4LmOcDC_SqPv94E1p4YsZGtBPso"], set: ["1XkgYG2YwY-SgXirfdGKgYXPI5HT65Hw6"] },
+    "Lizardmen": { loc: ["1r9ewT2xga0otHacd71fWJIB3vESGkA0J"], set: ["1wroIVV752ODGHyl-fraNFhnmmU6fZkul"], video: "https://youtu.be/aZGD1t4vDyc", note: "Shamans in Molch. Video shows the faster melee method." },
+    "Trolls": { loc: ["1EXL4STMYb8PvzD4m8BtJVkU9DgIjGNGW","170kFypzBCIgmVWYX0LCeNm7wIxWnuDAy"], set: ["1NicV0c1frd6cxDzWxxeMvGXfAFMrTiky","1PhyQX193jGY58pR34MZ2aPyd1zUXND3X"] },
+    "Blue dragons": { loc: ["1iheIGy4pDcWN_PNzL2N02CBhXftkPFxa"], set: ["1iHhf5m06wYe3BREc61TG-9e8fynhZoy7"], note: "Vorkath setup (bowfa)." }
+  },
+  "8087": {
+    "Abyssal demons": { loc: ["19wujHgXf99nQik7ECXVAajg_3evq2lGi"], set: ["1d6k5qqDHW1CfeGhORU5iIefmqpnT1jb8"], video: "https://www.youtube.com/watch?v=PNfojh88u_U", note: "Use a slayer helmet over the pictured helm." },
+    "Ankou": { set: ["1hERlKZZNjakEN0rguEaBstv2VSvnR0Wv"] },
+    "Black dragons": { set: ["1P_zl0niKwVW-QWv8eQFSzWY8b03qHpSU"] },
+    "Dagannoth": { set: ["1p86prMSJxve43z7ZFJ08y1qUgvlHgkyk"] },
+    "Dust devils": { set: ["1X3F87qxghBd_xhxl6PEEWLQPsayaOFP2"] },
+    "Lizardmen": { set: ["1S70DJUrpeLycpQvchBR0pKlu_RoZCmlH"] },
+    "Nechryael": { loc: ["1AjCNgJUxvdMSKG-S_5CldDpVSfD2azvP","1U3fcPYHwtTFMTKd1jVjZbitHucKIozYZ"], set: ["114ia1a8r7FKSP08XZM8V0s53hs52SnzH","1qZJyb83crid8-mnKME8W9NYAC6T_-rOD"], note: "Catacombs barrage and slayer tower melee options." },
+    "Blue dragons": { set: ["1YTs8JnvXRihJ_QB--KhLLHZlb5qT5tDx"], note: "Vorkath setup." }
+  },
+  "8793": {
+    "Ankou": { set: ["1M9aj51F2mDhOR79WzMDAk6qqREYOxpRb"] },
+    "Black dragons": { set: ["1xE1CbsmhQirrzwQDUABrM4RK8jhl8z1Y"] },
+    "Basilisks": { loc: ["1P2tddZSuemPikyStbcbKFX_z5G0XG1y1"], set: ["1wWZDT432R0a330HDKsma9L6nqFqCK3xG","1Gect5lYuKy5FDEiUU2XCIXvrpC2NkSow"], note: "Basilisk knights — optional task for the jaw." },
+    "Dagannoth": { set: ["17ZYCt1G9GuVn7mTprcZge483-QYQJvae"] },
+    "Dark beasts": { loc: ["1n3JaI9CnFQtYQAtFryLD1ujuORJ7ew3t"], set: ["1I7umWEjSesATmN5oB31qMsIssO7f2PQj"] },
+    "Dust devils": { set: ["190YyZo2riKRqdT0AUgGSWldRMZAQYuzI"] },
+    "Nechryael": { set: ["1uje4w6BWj4zPHHKy2qXcs5lfMiRcAkGn","1mSBX3pEyk71LYGi6X8TeAcC5MvuYOQ5A"] },
+    "Blue dragons": { set: ["1J0O_mtJTawj-s98j4adPOBuzslRABG32"] },
+    "Cave kraken": { set: ["1ezLscGA3IU5oSjj5bT4BkzgjQAghzyhp","1BxB4JZY5F31wuK2SOh595UY-TSzTXSaK"], note: "First image: small krakens (trident). Second: the boss." }
+  },
+  "9395": {
+    "Ankou": { set: ["1ZiQyrWIslfE5TyVlT242YNfb719bL9EO"] },
+    "Black dragons": { set: ["1V1ZB-gPwNSHGXQxZ702zFY_BIYrZF0kC"] },
+    "Dagannoth": { set: ["1epF9h23UILc9G562NpM5gzR30ZFAsAc7"] },
+    "Dark beasts": { set: ["1qfh7AZ78LPcHP_EahD-QKJaid5E3sskd"] },
+    "Dust devils": { set: ["18JZTWhmBdBaf0WFNCZVtaS4EX6g-v6RU"] },
+    "Nechryael": { set: ["1BxWsTVqeUQUULevftua1AbbVU329-0sC","1AdncmGHxiK-h7kho35KuXV3wc1EX4IIX"] },
+    "Smoke devils": { loc: ["1QXXEHfLM0xyVMJ8FVULI5mdH-BRkUBkK"], set: ["1Bo1jqOu_7oOfS7LPS1rpZl-r8FCCX1u_"] },
+    "Blue dragons": { set: ["1ujovNYQa2PHYYLnemjXvurLh_bP4G2nA"] }
+  },
+  "9599": {
+    "Abyssal demons": { set: ["19YHefdIne8SU6f3fAC2VxFZ6B96MEF-C"] },
+    "Ankou": { set: ["1IG3aze7KKcq8r0hLNWCFtxu_FhXxR9oi"] },
+    "Black dragons": { set: ["1fqMXnMzjeYP0Vq2JSquVtNjWfPax6zUm"] },
+    "Dagannoth": { set: ["1K5YqNUsxmqWmjboN1YxLGxZoAr4dkDBF"] },
+    "Dark beasts": { set: ["1AihURjjXOS8946LhSp-08Aq2sSK5I14R"] },
+    "Dust devils": { set: ["14GWZGtjgvlJYTPmvQe6tYDjeoz_kEQEd"] },
+    "Nechryael": { set: ["1F_7_Lt9GHAS_UA_rz9J_ohTAplH_koG4","1YxNEBQD65SpQcxJmnIAAn9p8_p7D6NfT"] },
+    "Smoke devils": { set: ["1CGH7jMlWxKUbOW7W_F8iBPnEGaFJgF0Y"] },
+    "Blue dragons": { set: ["1haKwMoQH-gYKrPH6GGCU2BN8TaPMFqcd"] }
+  }
+};
+const WIKI = {
+  "Lizardmen": "Lizardman_shaman", "Black dragons": "Black_dragon", "Dagannoth": "Dagannoth",
+  "Black demons": "Demonic_gorilla", "Gargoyles": "Gargoyle", "Ankou": "Ankou",
+  "Dust devils": "Dust_devil", "Abyssal demons": "Abyssal_demon", "Nechryael": "Nechryael",
+  "Blue dragons": "Vorkath", "Cave kraken": "Kraken", "Dark beasts": "Dark_beast",
+  "Smoke devils": "Smoke_devil", "Hydra": "Alchemical_Hydra", "Fire giants": "Fire_giant",
+  "Aberrant spectres": "Aberrant_spectre", "Cave horrors": "Cave_horror", "Trolls": "Troll",
+  "Elves": "Elf", "Brine rats": "Brine_rat", "Fossil Island wyverns": "Fossil_Island_Wyvern",
+  "Mutated zygomites": "Mutated_Zygomite", "Bloodveld": "Bloodveld", "Greater demons": "Tormented_demon",
+  "Red dragons": "Red_dragon", "Basilisks": "Basilisk_Knight",
+  "Wyrms": "Special:Search?search=lava+strykewyrm", "Araxytes": "Araxyte",
+  "Frost dragons": "Special:Search?search=frost+dragon",
+  "Custodian stalkers": "Special:Search?search=custodian+stalker",
+  "Warped creatures": "Warped_Terrorbird"
+};
+function driveImg(id) { return `https://drive.google.com/thumbnail?id=${id}&sz=w1400`; }
+function driveImg2(id) { return `https://lh3.googleusercontent.com/d/${id}=w1400`; }
+function driveLink(id) { return `https://drive.google.com/file/d/${id}/view`; }
+function imgFail(el) {
+  const id = el.dataset.id;
+  if (!el.dataset.retry) { el.dataset.retry = "1"; el.src = driveImg2(id); return; }
+  el.outerHTML = `<div class="imiss">Image won't load here — <a href="${driveLink(id)}" target="_blank" rel="noopener">open it in Drive</a>.</div>`;
+}
+function mergedMedia(taskName) {
+  const idx = BRACKETS.indexOf(cur);
+  let m = null;
+  for (let i = 0; i <= idx; i++) {
+    const e = MEDIA[BRACKETS[i].id] && MEDIA[BRACKETS[i].id][taskName];
+    if (e) m = Object.assign({}, m || {}, e);
+  }
+  return m;
+}
+function buildIntel(taskName) {
+  const m = mergedMedia(taskName);
+  const wiki = WIKI[taskName] || ("Special:Search?search=" + encodeURIComponent(taskName));
+  let btns = "";
+  if (m && (m.loc || m.set)) btns += `<span class="ibtn" onclick="toggleGallery()">⚔ Location &amp; gear</span>`;
+  btns += `<a class="ibtn" href="https://oldschool.runescape.wiki/w/${wiki}" target="_blank" rel="noopener">📖 Wiki</a>`;
+  if (m && m.video) btns += `<a class="ibtn" href="${m.video}" target="_blank" rel="noopener">▶ Video</a>`;
+  let gal = "";
+  if (m && (m.loc || m.set)) {
+    const fig = (id, cap) =>
+      `<figure><img data-src="${driveImg(id)}" data-id="${id}" alt="${cap}" referrerpolicy="no-referrer" loading="lazy" onerror="imgFail(this)"><figcaption>${cap}</figcaption></figure>`;
+    (m.loc || []).forEach((id, i) => gal += fig(id, "Location" + ((m.loc.length > 1) ? " " + (i + 1) : "")));
+    (m.set || []).forEach((id, i) => gal += fig(id, "Gear for this bracket" + ((m.set.length > 1) ? " — option " + (i + 1) : "")));
+    if (m.note) gal += `<div class="inote">${m.note}</div>`;
+    gal = `<div class="igallery" id="igallery">${gal}</div>`;
+  }
+  return btns + gal;
+}
+function toggleGallery() {
+  const g = document.getElementById("igallery");
+  if (!g) return;
+  g.classList.toggle("show");
+  if (g.classList.contains("show"))
+    g.querySelectorAll("img[data-src]").forEach(im => { im.src = im.dataset.src; im.removeAttribute("data-src"); });
+}
+
 let cur = BRACKETS[1];
 function norm(s) { return s.toLowerCase().replace(/[^a-z ]/g, "").trim(); }
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
@@ -534,6 +687,11 @@ function showVerdict(name) {
   const marked = name && marks.has(name);
   document.getElementById("dnote").innerHTML =
     (note ? note : "") + (marked ? `<div class="dmark">✔ Already on your block list.</div>` : "");
+  const intel = document.getElementById("intel");
+  if (name && (st === "do" || st === "special")) {
+    intel.innerHTML = buildIntel(name);
+    intel.style.display = "block";
+  } else { intel.innerHTML = ""; intel.style.display = "none"; }
   d.className = "dialogue show";
   if (marked) return;
 
@@ -602,7 +760,7 @@ input.addEventListener("input", () => {
 });
 input.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") hideMenu(); });
 input.addEventListener("blur", () => setTimeout(hideMenu, 150));
-document.getElementById("dialogue").addEventListener("click", () => {
+document.getElementById("dcont").addEventListener("click", () => {
   document.getElementById("dialogue").className = "dialogue";
   input.value = ""; input.focus();
 });
