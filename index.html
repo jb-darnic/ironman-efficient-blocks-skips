@@ -114,7 +114,7 @@
   @keyframes pop { from { transform: scale(0.96); } to { transform: scale(1); } }
   .dialogue.show { display: flex; gap: 16px; align-items: center; }
   .chathead { flex: 0 0 auto; width: auto; height: 96px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.35)); }
-  .dtext { flex: 1; text-align: center; }
+  .dtext { flex: 1; min-width: 0; text-align: center; }
   .dname { font-size: 24px; color: #8b1a1a; margin-bottom: 2px; }
   .dline { font-size: 25px; color: #17130c; line-height: 1.1; }
   .dline .vword-do { color: #0a7d0a; } .dline .vword-skip { color: #9a6a00; }
@@ -137,6 +137,36 @@
   .igallery figcaption { font-size: 17px; color: #4a3d28; margin-top: 2px; }
   .igallery .imiss { font-size: 17px; color: #8b1a1a; }
   .inote { font-size: 17px; color: #4a3d28; margin-top: 4px; font-style: normal; }
+  /* live wiki panel */
+  .wikiview {
+    display: none; text-align: left; background: #efe6d0; border: 2px solid #5d4a32;
+    padding: 10px 14px; margin-top: 8px; font-size: 17.5px; color: #17130c;
+    max-height: 560px; overflow-y: auto; overflow-x: auto; line-height: 1.25; max-width: 100%;
+  }
+  .wikiview h2, .wikiview h3, .wikiview h4 {
+    font-weight: 400; color: #8b1a1a; margin: 12px 0 4px;
+    border-bottom: 1px solid #b9a67f; font-size: 22px;
+  }
+  .wikiview h3 { font-size: 19px; } .wikiview h4 { font-size: 18px; border-bottom: none; }
+  .wikiview p { margin: 6px 0; }
+  .wikiview ul, .wikiview ol { margin: 6px 0 6px 22px; }
+  .wikiview a { color: #14456b; }
+  .wikiview table {
+    border-collapse: collapse; margin: 8px 0; width: 100%;
+    background: #e6dcc2; font-size: 16px;
+  }
+  .wikiview th, .wikiview td { border: 1px solid #b9a67f; padding: 3px 6px; text-align: left; vertical-align: middle; }
+  .wikiview th { background: #c9bb9b; font-weight: 400; }
+  .wikiview img { max-width: 100%; height: auto; vertical-align: middle; }
+  .wikiview .wtab {
+    display: inline-block; background: #c9bb9b; border: 1px solid #5d4a32;
+    padding: 2px 10px 0; margin: 10px 0 2px; font-size: 16px; color: #17130c;
+  }
+  .wikiview .wattr {
+    font-size: 14px; color: #6e5d43; border-bottom: 1px solid #b9a67f;
+    padding-bottom: 5px; margin-bottom: 6px;
+  }
+  .wikiview .wload { color: #4a3d28; font-size: 18px; }
 
   /* hitsplat + xp drop */
   .splat {
@@ -629,9 +659,10 @@ function buildIntel(taskName, showGear) {
   const wiki = WIKI[taskName] || ("Special:Search?search=" + encodeURIComponent(taskName));
   let btns = "";
   if (m && (m.loc || m.set)) btns += `<span class="ibtn" onclick="toggleGallery()">⚔ Location &amp; gear</span>`;
-  if (TASKPAGE[taskName]) btns += `<a class="ibtn" href="https://oldschool.runescape.wiki/w/Slayer_task/${TASKPAGE[taskName]}" target="_blank" rel="noopener">📜 Task guide</a>`;
+  if (TASKPAGE[taskName]) btns += `<span class="ibtn" onclick="toggleWiki('${TASKPAGE[taskName]}')">📜 Task guide</span>`;
   btns += `<a class="ibtn" href="https://oldschool.runescape.wiki/w/${wiki}" target="_blank" rel="noopener">📖 Wiki</a>`;
   if (m && m.video) btns += `<a class="ibtn" href="${m.video}" target="_blank" rel="noopener">▶ Video</a>`;
+  let wv = TASKPAGE[taskName] ? `<div class="wikiview" id="wikiview"></div>` : "";
   let gal = "";
   if (m && (m.loc || m.set)) {
     const fig = (id, cap) =>
@@ -641,7 +672,91 @@ function buildIntel(taskName, showGear) {
     if (m.note) gal += `<div class="inote">${m.note}</div>`;
     gal = `<div class="igallery" id="igallery">${gal}</div>`;
   }
-  return btns + gal;
+  return btns + wv + gal;
+}
+
+// ------- live wiki guide fetch (public MediaWiki API, CORS-enabled) -------
+function wkCacheGet(page) {
+  try {
+    const raw = localStorage.getItem("wk:" + page);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (Date.now() - o.t > 7 * 864e5) return null;   // 7-day expiry
+    return o.h;
+  } catch (e) { return null; }
+}
+function wkCacheSet(page, html) {
+  try { localStorage.setItem("wk:" + page, JSON.stringify({ t: Date.now(), h: html })); }
+  catch (e) {
+    try {   // quota — drop old wiki caches and retry once
+      Object.keys(localStorage).filter(k => k.startsWith("wk:")).forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("wk:" + page, JSON.stringify({ t: Date.now(), h: html }));
+    } catch (e2) {}
+  }
+}
+function cleanWiki(html, page) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const root = doc.querySelector(".mw-parser-output") || doc.body;
+  root.querySelectorAll(
+    ".mw-editsection, .navbox, #toc, .toc, script, style, noscript, .mw-references-wrap, " +
+    ".reference, .reflist, .messagebox, .mbox, .infobox, .rsw-synced-switch, .mw-empty-elt, .printfooter"
+  ).forEach(e => e.remove());
+  root.querySelectorAll("h2, h3").forEach(h => {
+    const t = h.textContent.trim().toLowerCase();
+    if (t === "references" || t === "changes" || t === "gallery") {
+      let n = h.nextElementSibling;
+      while (n && !/^H[23]$/.test(n.tagName)) { const nx = n.nextElementSibling; n.remove(); n = nx; }
+      h.remove();
+    }
+  });
+  root.querySelectorAll(".tabber").forEach(tb => {
+    const parts = [];
+    tb.querySelectorAll(".tabbertab").forEach(t => {
+      const cap = doc.createElement("div");
+      cap.className = "wtab"; cap.textContent = t.getAttribute("title") || "";
+      parts.push(cap); [...t.childNodes].forEach(n => parts.push(n));
+    });
+    tb.replaceWith(...parts);
+  });
+  root.querySelectorAll("a[href]").forEach(a => {
+    const h = a.getAttribute("href") || "";
+    if (h.startsWith("/")) a.setAttribute("href", "https://oldschool.runescape.wiki" + h);
+    a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener");
+  });
+  root.querySelectorAll("img").forEach(im => {
+    const s = im.getAttribute("src") || "";
+    if (s.startsWith("/")) im.setAttribute("src", "https://oldschool.runescape.wiki" + s);
+    const ss = im.getAttribute("srcset");
+    if (ss) im.setAttribute("srcset", ss.split(",").map(x => {
+      x = x.trim(); return x.startsWith("/") ? "https://oldschool.runescape.wiki" + x : x;
+    }).join(", "));
+    im.setAttribute("loading", "lazy");
+    im.removeAttribute("width"); im.removeAttribute("height");
+  });
+  const attr = `<div class="wattr">Live from the <a href="https://oldschool.runescape.wiki/w/Slayer_task/${page}" target="_blank" rel="noopener">OSRS Wiki</a> (CC BY-NC-SA) — game content &copy; Jagex.</div>`;
+  return attr + root.innerHTML;
+}
+async function toggleWiki(page) {
+  const v = document.getElementById("wikiview");
+  if (!v) return;
+  if (v.style.display === "block") { v.style.display = "none"; return; }
+  v.style.display = "block";
+  if (v.dataset.loaded) return;
+  v.innerHTML = `<div class="wload">Consulting the wiki scrolls...</div>`;
+  try {
+    let html = wkCacheGet(page);
+    if (!html) {
+      const r = await fetch(`https://oldschool.runescape.wiki/api.php?action=parse&page=Slayer_task/${encodeURIComponent(page)}&prop=text&format=json&origin=*`);
+      const j = await r.json();
+      if (!j.parse || !j.parse.text) throw new Error("bad response");
+      html = j.parse.text["*"];
+      wkCacheSet(page, html);
+    }
+    v.innerHTML = cleanWiki(html, page);
+    v.dataset.loaded = "1";
+  } catch (e) {
+    v.innerHTML = `<div class="wload">Couldn't reach the wiki from here — <a href="https://oldschool.runescape.wiki/w/Slayer_task/${page}" target="_blank" rel="noopener">open the task guide</a> instead.</div>`;
+  }
 }
 function toggleGallery() {
   const g = document.getElementById("igallery");
