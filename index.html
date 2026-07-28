@@ -96,6 +96,21 @@
   .lvlock .n { opacity: 0.5; }
   .lvlock .lvtag { color: #7ec9ff; }
 
+  /* ---------- points tracker ---------- */
+  .pbtn {
+    font-size: 18px; padding: 4px 10px 2px; cursor: inherit; color: var(--orange);
+    background: linear-gradient(160deg, #52483a, #3e362b); border: 2px solid #000;
+    text-shadow: 1px 1px 0 #000;
+    box-shadow: inset 1px 1px 0 var(--stone-hi), inset -1px -1px 0 var(--stone-lo);
+    user-select: none;
+  }
+  .pbtn:hover { color: var(--yellow); }
+  .pbtn:active { box-shadow: inset 1px 1px 0 var(--stone-lo), inset -1px -1px 0 var(--stone-hi); }
+  .readout { flex-basis: 100%; text-align: center; font-size: 18px; color: var(--tan-lo); text-shadow: 1px 1px 0 #000; line-height: 1.3; }
+  .readout .good { color: var(--green); } .readout .warn { color: var(--yellow); } .readout .bad { color: var(--red); }
+  .readout .mile { color: #7ec9ff; }
+  .dnote .pwarn { color: #a01414; }
+
   /* ---------- search + choose-option menu ---------- */
   .searchbox { position: relative; margin-bottom: 18px; z-index: 30; }
   .searchbox input {
@@ -273,6 +288,15 @@
     <span class="chip" data-flag="tormented" title="Burning claws, scorching bow and emberlight obtained">Tormented done</span>
     <span class="chip" data-flag="dwh" title="Dragon warhammer dropped">DWH</span>
     <span class="chip" data-flag="fang" title="Osmumten's Fang from ToA">Fang</span>
+  </div>
+  <div class="stats stone" id="pointsbar">
+    <span class="slabel">Points</span><input id="pts" type="number" min="0" max="65535" placeholder="--">
+    <span class="slabel">Streak</span><input id="streak" type="number" min="0" max="99999" placeholder="--">
+    <span class="slabel">Per task</span><input id="ppt" type="number" min="0" max="200" value="15" title="Base points per task (15 at Duradel, 12 at Nieve, 18/20 at Konar)">
+    <span class="pbtn" id="btnTask" title="Adds base points times the milestone multiplier">＋ Task done</span>
+    <span class="pbtn" id="btnSkip">− Skip 30</span>
+    <span class="pbtn" id="btnBlock">− Block 100</span>
+    <div class="readout" id="readout"></div>
   </div>
 
   <div class="searchbox">
@@ -866,6 +890,47 @@ function renderStats() {
   document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", !!prog[c.dataset.flag]));
 }
 
+// ------- points & streak tracker -------
+let pts = prefGet("pts", null), streak = prefGet("streak", null), ppt = prefGet("ppt", 15);
+const MILESTONES = [[1000, 50], [250, 35], [100, 25], [50, 15], [10, 5]];
+function milestoneMult(n) {
+  for (const [m, x] of MILESTONES) if (n % m === 0) return x;
+  return 1;
+}
+function nextBigMilestone(n) {
+  // next task count that pays a boosted bonus, and its multiplier
+  for (let k = n + 1; k <= n + 10; k++) { const x = milestoneMult(k); if (x > 1) return [k, x]; }
+  return null;
+}
+function renderPoints() {
+  document.getElementById("pts").value = (pts === null ? "" : pts);
+  document.getElementById("streak").value = (streak === null ? "" : streak);
+  document.getElementById("ppt").value = ppt;
+  const out = document.getElementById("readout");
+  if (pts === null) { out.innerHTML = `Enter your points to track skips against the 300-point buffer.`; return; }
+  let skipMsg;
+  if (pts < 30) skipMsg = `<span class="bad">You can't afford a skip (${pts} pts).</span>`;
+  else if (pts - 30 < 300) skipMsg = `<span class="warn">Skip leaves ${pts - 30} — under the 300 buffer, spend carefully.</span>`;
+  else skipMsg = `<span class="good">Skips are free money — a skip leaves ${pts - 30}, buffer intact.</span>`;
+  let mileMsg = "";
+  if (streak !== null) {
+    const nb = nextBigMilestone(streak);
+    if (nb) {
+      const [k, x] = nb;
+      const bonus = ppt * x;
+      mileMsg = (k === streak + 1)
+        ? ` <span class="mile">NEXT task is #${k} — worth ~${bonus} points. Don't skip it!</span>`
+        : ` <span class="mile">Task #${k} pays ~${bonus} pts (${k - streak} to go).</span>`;
+    }
+  }
+  out.innerHTML = skipMsg + mileMsg;
+}
+function bumpPoints() {
+  const q = document.getElementById("search").value;
+  renderPoints();
+  if (q.trim().length >= 2) showVerdict(candidates(q)[0] || null);
+}
+
 let cur = BRACKETS[1];
 function norm(s) { return s.toLowerCase().replace(/[^a-z ]/g, "").trim(); }
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
@@ -927,8 +992,15 @@ function showVerdict(name) {
   const line = pool[hash(taskLabel) % pool.length].replaceAll("«T»", `<b>${taskLabel}</b>`);
   document.getElementById("dline").innerHTML = line;
   const marked = name && marks.has(name);
+  let pnote = "";
+  if (pts !== null && st === "skip") {
+    if (pts < 30) pnote = `<div class="pwarn">…but you only have ${pts} points. Suffer through it or Turael-skip.</div>`;
+    else if (pts - 30 < 300) pnote = `<div class="pwarn">Skipping leaves ${pts - 30} pts — under your 300 buffer.</div>`;
+  }
+  if (pts !== null && streak !== null && milestoneMult(streak + 1) > 1 && (st === "skip" || st === "block"))
+    pnote += `<div class="pwarn">This is your #${streak + 1} task — worth ~${ppt * milestoneMult(streak + 1)} pts. Consider doing it anyway.</div>`;
   document.getElementById("dnote").innerHTML =
-    (note ? note : "") + (marked ? `<div class="dmark">✔ Already on your block list.</div>` : "");
+    (note ? note : "") + pnote + (marked ? `<div class="dmark">✔ Already on your block list.</div>` : "");
   const intel = document.getElementById("intel");
   if (name && st !== "notfound") {
     intel.innerHTML = buildIntel(name, st === "do" || st === "special");
@@ -1018,11 +1090,35 @@ document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () =
   renderStats();
   setBracket(cur);
 }));
+document.getElementById("pts").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  pts = isNaN(v) ? null : Math.max(0, v); prefSet("pts", pts); renderPoints();
+});
+document.getElementById("streak").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  streak = isNaN(v) ? null : Math.max(0, v); prefSet("streak", streak); renderPoints();
+});
+document.getElementById("ppt").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  ppt = isNaN(v) ? 15 : Math.max(0, v); prefSet("ppt", ppt); renderPoints();
+});
+document.getElementById("btnTask").addEventListener("click", () => {
+  streak = (streak === null ? 0 : streak) + 1;
+  if (pts !== null) pts += ppt * milestoneMult(streak);
+  prefSet("streak", streak); prefSet("pts", pts); bumpPoints();
+});
+document.getElementById("btnSkip").addEventListener("click", () => {
+  if (pts !== null) { pts = Math.max(0, pts - 30); prefSet("pts", pts); } bumpPoints();
+});
+document.getElementById("btnBlock").addEventListener("click", () => {
+  if (pts !== null) { pts = Math.max(0, pts - 100); prefSet("pts", pts); } bumpPoints();
+});
 document.getElementById("dcont").addEventListener("click", () => {
   document.getElementById("dialogue").className = "dialogue";
   input.value = ""; input.focus();
 });
 renderStats();
+renderPoints();
 setBracket(myLevel && myLevel >= 50 ? bracketForLevel(myLevel) : BRACKETS[1]);
 </script>
 </body>
