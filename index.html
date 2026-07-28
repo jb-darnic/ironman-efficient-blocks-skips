@@ -736,7 +736,7 @@ const WIKI = {
 };
 // verified Slayer task/... guide pages on the wiki (equipment, locations, notes)
 const TASKPAGE = {
-  "Aberrant spectres": "Aberrant_spectres", "Abyssal demons": "Abyssal_demons", "Ankou": "Ankous",
+  "Aberrant spectres": "Aberrant_spectres", "Abyssal demons": "Abyssal_demons", "Ankou": "Ankou",
   "Aquanites": "Aquanites", "Araxytes": "Araxytes", "Aviansies": "Aviansie", "Basilisks": "Basilisks",
   "Black demons": "Black_demons", "Black dragons": "Black_dragons", "Blue dragons": "Blue_dragons",
   "Bloodveld": "Bloodveld", "Cave horrors": "Cave_horrors", "Cave kraken": "Cave_krakens",
@@ -860,7 +860,7 @@ async function toggleWiki(page) {
   try {
     let html = wkCacheGet(page);
     if (!html) {
-      const r = await fetch(`https://oldschool.runescape.wiki/api.php?action=parse&page=Slayer_task/${encodeURIComponent(page)}&prop=text&format=json&origin=*`);
+      const r = await fetch(`https://oldschool.runescape.wiki/api.php?action=parse&page=Slayer_task/${encodeURIComponent(page)}&prop=text&format=json&redirects=1&origin=*`);
       const j = await r.json();
       if (!j.parse || !j.parse.text) throw new Error("bad response");
       html = j.parse.text["*"];
@@ -965,7 +965,14 @@ function renderPoints() {
   document.getElementById("streak").value = (streak === null ? "" : streak);
   document.getElementById("ppt").value = ppt;
   const out = document.getElementById("readout");
-  if (pts === null) { out.innerHTML = `Enter your points to track skips against the 300-point buffer.`; return; }
+  if (pts === null) {
+    let msg = `Enter your points to track skips against the 300-point buffer.`;
+    if (streak !== null) {
+      const nb = nextBigMilestone(streak);
+      if (nb) msg += ` <span class="mile">Task #${nb[0]} pays a ${nb[1]}x bonus (${nb[0] - streak} to go).</span>`;
+    }
+    out.innerHTML = msg; return;
+  }
   let skipMsg;
   if (pts < 30) skipMsg = `<span class="bad">You can't afford a skip (${pts} pts).</span>`;
   else if (pts - 30 < 300) skipMsg = `<span class="warn">Skip leaves ${pts - 30} — under the 300 buffer, spend carefully.</span>`;
