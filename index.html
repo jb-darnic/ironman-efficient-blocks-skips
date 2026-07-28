@@ -69,8 +69,32 @@
     background: linear-gradient(160deg, #8a2f20, #6b1f14);
     box-shadow: inset 2px 2px 0 #b0503c, inset -2px -2px 0 #40100a;
   }
-  .master-line { text-align: center; font-size: 20px; color: var(--tan-lo); text-shadow: 2px 2px 0 #000; margin-bottom: 14px; }
+  .master-line { text-align: center; font-size: 20px; color: var(--tan-lo); text-shadow: 2px 2px 0 #000; margin-bottom: 10px; }
   .master-line b { color: var(--orange); font-weight: 400; }
+  .master-line .unlock { color: #7ec9ff; }
+
+  /* ---------- my stats bar ---------- */
+  .stats {
+    display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: center;
+    padding: 8px 12px 7px; margin: 0 4px 14px; font-size: 19px;
+  }
+  .stats .slabel { color: var(--tan-lo); text-shadow: 1px 1px 0 #000; }
+  .stats input {
+    width: 58px; font-family: 'VT323', monospace; font-size: 22px; text-align: center;
+    background: #16120c; color: var(--yellow); border: 2px solid #000; outline: none;
+    padding: 2px 4px 0; text-shadow: 1px 1px 0 #000;
+    box-shadow: inset 2px 2px 0 #000, 0 0 0 1px var(--stone-lo);
+  }
+  .chip {
+    font-size: 18px; padding: 4px 10px 2px; cursor: inherit; color: #8a7c66;
+    background: #352e24; border: 2px solid #000; text-shadow: 1px 1px 0 #000;
+    box-shadow: inset 1px 1px 0 var(--stone-hi), inset -1px -1px 0 var(--stone-lo);
+  }
+  .chip:hover { color: var(--tan); }
+  .chip.on { color: var(--green); background: #1e2a18; }
+  .chip.on::before { content: "✔ "; }
+  .lvlock .n { opacity: 0.5; }
+  .lvlock .lvtag { color: #7ec9ff; }
 
   /* ---------- search + choose-option menu ---------- */
   .searchbox { position: relative; margin-bottom: 18px; z-index: 30; }
@@ -242,6 +266,14 @@
 
   <div class="brackets" id="brackets"></div>
   <div class="master-line" id="masterline"></div>
+  <div class="stats stone" id="stats">
+    <span class="slabel">Slayer lvl</span><input id="lvl" type="number" min="1" max="99" placeholder="--">
+    <span class="chip" data-flag="zenytes" title="All four zenytes collected">4 zenytes</span>
+    <span class="chip" data-flag="trident" title="Trident + kraken combat achievements done">Trident</span>
+    <span class="chip" data-flag="tormented" title="Burning claws, scorching bow and emberlight obtained">Tormented done</span>
+    <span class="chip" data-flag="dwh" title="Dragon warhammer dropped">DWH</span>
+    <span class="chip" data-flag="fang" title="Osmumten's Fang from ToA">Fang</span>
+  </div>
 
   <div class="searchbox">
     <input id="search" type="text" placeholder="Type your task... e.g. hellhounds, gorillas, nechs" autocomplete="off" spellcheck="false" autofocus>
@@ -766,6 +798,74 @@ function toggleGallery() {
     g.querySelectorAll("img[data-src]").forEach(im => { im.src = im.dataset.src; im.removeAttribute("data-src"); });
 }
 
+// ------- state awareness: slayer level + progress toggles -------
+const REQS = {
+  "Bloodveld": 50, "Turoth": 55, "Mutated zygomites": 57, "Cave horrors": 58,
+  "Aberrant spectres": 60, "Wyrms": 62, "Spiritual creatures": 63, "Dust devils": 65,
+  "Fossil Island wyverns": 66, "Kurask": 70, "Skeletal wyverns": 72, "Gargoyles": 75,
+  "Nechryael": 80, "Drakes": 84, "Abyssal demons": 85, "Cave kraken": 87,
+  "Dark beasts": 90, "Araxytes": 92, "Smoke devils": 93, "Hydra": 95
+};
+const UNLOCKS = [[80, "Nechryael"], [84, "Drakes"], [85, "Abyssal demons"], [87, "Cave kraken"],
+  [90, "Dark beasts"], [92, "Araxytes"], [93, "Smoke devils"], [95, "Konar & Hydra"]];
+const OVERRIDES = [
+  { flag: "zenytes", task: "Black demons", brackets: ["8087", "8793", "9395"],
+    off: [D, "Demonic gorillas — keep farming until all four zenytes drop, then flip the toggle."],
+    on:  [B, "Zenytes done — block it and don't look back."] },
+  { flag: "trident", task: "Cave kraken", brackets: ["8793", "9395"],
+    off: [D, "Kill small krakens for the trident + tentacle and the combat achievements."],
+    on:  [B, "Trident done — block it."] },
+  { flag: "tormented", task: "Greater demons", brackets: ["8087", "8793", "9395"],
+    off: [D, "Tormented demons — only with arclight/emberlight and 20+ ancient shards banked."],
+    on:  [B, "Tormented drops done — block it again."] },
+  { flag: "dwh", task: "Lizardmen", brackets: ["8793"],
+    off: [D, "Until the DWH drops."],
+    on:  [D, "DWH done — still fine xp, or skip it if you'd rather."] },
+  { flag: "dwh", task: "Lizardmen", brackets: ["9395"],
+    off: [D, "Still hunting the DWH."],
+    on:  [S, "DWH done — skip it."] },
+  { flag: "fang", task: "Blue dragons", brackets: ["8793", "9395", "9599"],
+    off: null,
+    on:  [D, "Vorkath — use the Osmumten's Fang."] }
+];
+let memPrefs = {};
+function prefGet(k, dflt) {
+  try { const v = localStorage.getItem("pref:" + k); return v === null ? dflt : JSON.parse(v); }
+  catch (e) { return (k in memPrefs) ? memPrefs[k] : dflt; }
+}
+function prefSet(k, v) {
+  try { localStorage.setItem("pref:" + k, JSON.stringify(v)); } catch (e) { memPrefs[k] = v; }
+}
+let myLevel = prefGet("level", null);
+let prog = prefGet("prog", {});
+function effectiveTask(name) {
+  let [st, note] = cur.tasks[name];
+  for (const r of OVERRIDES) {
+    if (r.task === name && r.brackets.includes(cur.id)) {
+      const v = prog[r.flag] ? r.on : r.off;
+      if (v) [st, note] = v;
+    }
+  }
+  return [st, note];
+}
+function bracketForLevel(l) {
+  if (l < 73) return BRACKETS[0];
+  if (l < 80) return BRACKETS[1];
+  if (l < 87) return BRACKETS[2];
+  if (l < 93) return BRACKETS[3];
+  if (l < 95) return BRACKETS[4];
+  return BRACKETS[5];
+}
+function unlockHint() {
+  if (!myLevel) return "";
+  const nxt = UNLOCKS.find(([l]) => l > myLevel);
+  return nxt ? ` <span class="unlock">Next unlock: ${nxt[1]} at ${nxt[0]} (${nxt[0] - myLevel} to go).</span>` : "";
+}
+function renderStats() {
+  document.getElementById("lvl").value = myLevel || "";
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", !!prog[c.dataset.flag]));
+}
+
 let cur = BRACKETS[1];
 function norm(s) { return s.toLowerCase().replace(/[^a-z ]/g, "").trim(); }
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
@@ -814,7 +914,11 @@ function showVerdict(name) {
   head.src = HEADS[masterName] || HEADS.Duradel || "";
 
   let st, note, taskLabel;
-  if (name) { [st, note] = cur.tasks[name]; taskLabel = name; }
+  if (name && myLevel && REQS[name] && REQS[name] > myLevel) {
+    st = "locked"; taskLabel = name;
+    note = `Needs ${REQS[name]} Slayer — you're ${REQS[name] - myLevel} level${REQS[name] - myLevel > 1 ? "s" : ""} away.`;
+  }
+  else if (name) { [st, note] = effectiveTask(name); taskLabel = name; }
   else if (q.length >= 2 && cur.fallback) { [st, note] = cur.fallback; taskLabel = q; }
   else if (q.length >= 2) { st = "notfound"; note = ""; taskLabel = q; }
   else { d.className = "dialogue"; return; }
@@ -842,7 +946,8 @@ function showVerdict(name) {
 function renderLists() {
   const el = document.getElementById("lists");
   const groups = {};
-  for (const [name, [st, note]] of Object.entries(cur.tasks)) {
+  for (const name of Object.keys(cur.tasks)) {
+    const [st, note] = effectiveTask(name);
     (groups[st] = groups[st] || []).push([name, note]);
   }
   el.innerHTML = GROUP_ORDER.filter(([st]) => groups[st]).map(([st, title]) => {
@@ -856,7 +961,9 @@ function renderLists() {
       const markBtn = st === "block"
         ? `<span class="mark${marks.has(n) ? " on" : ""}" title="Tick when you've blocked this in game" onclick="event.stopPropagation();toggleMark('${esc}')">✔</span>`
         : "";
-      return `<li onclick="pick('${esc}')"><span class="n">${n}</span>${markBtn}${t ? `<span class="t">${t}</span>` : ""}</li>`;
+      const lvLocked = myLevel && REQS[n] && REQS[n] > myLevel && st !== "locked";
+      const lvTag = lvLocked ? `<span class="t lvtag">🔒 needs ${REQS[n]} slayer</span>` : "";
+      return `<li${lvLocked ? ' class="lvlock"' : ""} onclick="pick('${esc}')"><span class="n">${n}</span>${markBtn}${lvTag}${t ? `<span class="t">${t}</span>` : ""}</li>`;
     }).join("");
     return `<div class="group stone ${gcls}"><h3>${title}</h3><ul>${items}</ul></div>`;
   }).join("");
@@ -873,7 +980,7 @@ function setBracket(b) {
   cur = b;
   document.querySelectorAll(".brackets button").forEach(btn =>
     btn.classList.toggle("on", btn.dataset.id === b.id));
-  document.getElementById("masterline").innerHTML = `<b>${b.master}</b> — ${b.sub}`;
+  document.getElementById("masterline").innerHTML = `<b>${b.master}</b> — ${b.sub}.${unlockHint()}`;
   const adv = document.getElementById("advice");
   if (b.advice) { adv.className = "advice stone show"; adv.innerHTML = b.advice; }
   else adv.className = "advice stone";
@@ -898,11 +1005,25 @@ input.addEventListener("input", () => {
 });
 input.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") hideMenu(); });
 input.addEventListener("blur", () => setTimeout(hideMenu, 150));
+document.getElementById("lvl").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  myLevel = (v >= 1 && v <= 99) ? v : null;
+  prefSet("level", myLevel);
+  if (myLevel && myLevel >= 50) setBracket(bracketForLevel(myLevel));
+  else setBracket(cur);
+});
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  prog[c.dataset.flag] = !prog[c.dataset.flag];
+  prefSet("prog", prog);
+  renderStats();
+  setBracket(cur);
+}));
 document.getElementById("dcont").addEventListener("click", () => {
   document.getElementById("dialogue").className = "dialogue";
   input.value = ""; input.focus();
 });
-setBracket(BRACKETS[1]);
+renderStats();
+setBracket(myLevel && myLevel >= 50 ? bracketForLevel(myLevel) : BRACKETS[1]);
 </script>
 </body>
 </html>
