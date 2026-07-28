@@ -583,7 +583,29 @@ const WIKI = {
   "Wyrms": "Special:Search?search=lava+strykewyrm", "Araxytes": "Araxyte",
   "Frost dragons": "Special:Search?search=frost+dragon",
   "Custodian stalkers": "Special:Search?search=custodian+stalker",
-  "Warped creatures": "Warped_Terrorbird"
+  "Warped creatures": "Warped_Terrorbird", "Boss tasks": "Slayer_task", "Suqahs": "Suqah",
+  "Kalphite": "Kalphite", "Kurask": "Kurask", "Skeletal wyverns": "Skeletal_Wyvern",
+  "Hellhounds": "Hellhound", "Metal dragons": "Iron_dragon", "Drakes": "Drake_(monster)",
+  "Aviansies": "Aviansie", "Vampyres": "Vampyre", "Aquanites": "Aquanite",
+  "Tzhaar": "TzHaar", "Gryphons": "Special:Search?search=gryphon", "Turoth": "Turoth",
+  "Waterfiends": "Waterfiend", "Suqah": "Suqah", "Spiritual creatures": "Spiritual_creature"
+};
+// verified Slayer task/... guide pages on the wiki (equipment, locations, notes)
+const TASKPAGE = {
+  "Aberrant spectres": "Aberrant_spectres", "Abyssal demons": "Abyssal_demons", "Ankou": "Ankous",
+  "Aquanites": "Aquanites", "Araxytes": "Araxytes", "Aviansies": "Aviansie", "Basilisks": "Basilisks",
+  "Black demons": "Black_demons", "Black dragons": "Black_dragons", "Blue dragons": "Blue_dragons",
+  "Bloodveld": "Bloodveld", "Cave horrors": "Cave_horrors", "Cave kraken": "Cave_krakens",
+  "Custodian stalkers": "Custodian_stalker", "Dagannoth": "Dagannoth", "Dark beasts": "Dark_beast",
+  "Drakes": "Drake", "Dust devils": "Dust_devils", "Elves": "Elves", "Fire giants": "Fire_giants",
+  "Fossil Island wyverns": "Fossil_Island_wyverns", "Frost dragons": "Frost_dragons",
+  "Gargoyles": "Gargoyles", "Greater demons": "Greater_demons", "Gryphons": "Gryphons",
+  "Hellhounds": "Hellhounds", "Hydra": "Hydras", "Kalphite": "Kalphites", "Kurask": "Kurasks",
+  "Lizardmen": "Lizardmen", "Metal dragons": "Metal_dragons", "Mutated zygomites": "Zygomites",
+  "Nechryael": "Nechryael", "Red dragons": "Red_dragons", "Skeletal wyverns": "Skeletal_Wyvern",
+  "Smoke devils": "Smoke_devils", "Spiritual creatures": "Spiritual_creatures", "Suqahs": "Suqah",
+  "Trolls": "Trolls", "Turoth": "Turoth", "Tzhaar": "TzHaar", "Vampyres": "Vampyres",
+  "Warped creatures": "Warped_creatures", "Waterfiends": "Waterfiends", "Wyrms": "Wyrms"
 };
 function driveImg(id) { return `https://drive.google.com/thumbnail?id=${id}&sz=w1400`; }
 function driveImg2(id) { return `https://lh3.googleusercontent.com/d/${id}=w1400`; }
@@ -602,11 +624,12 @@ function mergedMedia(taskName) {
   }
   return m;
 }
-function buildIntel(taskName) {
-  const m = mergedMedia(taskName);
+function buildIntel(taskName, showGear) {
+  const m = showGear ? mergedMedia(taskName) : null;
   const wiki = WIKI[taskName] || ("Special:Search?search=" + encodeURIComponent(taskName));
   let btns = "";
   if (m && (m.loc || m.set)) btns += `<span class="ibtn" onclick="toggleGallery()">⚔ Location &amp; gear</span>`;
+  if (TASKPAGE[taskName]) btns += `<a class="ibtn" href="https://oldschool.runescape.wiki/w/Slayer_task/${TASKPAGE[taskName]}" target="_blank" rel="noopener">📜 Task guide</a>`;
   btns += `<a class="ibtn" href="https://oldschool.runescape.wiki/w/${wiki}" target="_blank" rel="noopener">📖 Wiki</a>`;
   if (m && m.video) btns += `<a class="ibtn" href="${m.video}" target="_blank" rel="noopener">▶ Video</a>`;
   let gal = "";
@@ -688,8 +711,8 @@ function showVerdict(name) {
   document.getElementById("dnote").innerHTML =
     (note ? note : "") + (marked ? `<div class="dmark">✔ Already on your block list.</div>` : "");
   const intel = document.getElementById("intel");
-  if (name && (st === "do" || st === "special")) {
-    intel.innerHTML = buildIntel(name);
+  if (name && st !== "notfound") {
+    intel.innerHTML = buildIntel(name, st === "do" || st === "special");
     intel.style.display = "block";
   } else { intel.innerHTML = ""; intel.style.display = "none"; }
   d.className = "dialogue show";
